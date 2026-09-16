@@ -63,7 +63,7 @@ export default function FolderGrid({
       {items.map((item) => (
         <div
           key={item.id}
-          className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:border-brand-300 hover:shadow-sm transition cursor-pointer"
+          className="group relative bg-white border border-slate-200 rounded-xl p-4 pr-14 hover:border-brand-300 hover:shadow-sm transition cursor-pointer"
           onClick={() => editingId !== item.id && onOpen(item.id)}
         >
           {editingId === item.id ? (
@@ -85,14 +85,14 @@ export default function FolderGrid({
           ) : (
             <>
               <Folder className="text-brand-500 mb-2" size={22} />
-              <p className="text-sm font-medium text-slate-800 truncate pr-2">{item.name}</p>
-              <div className="absolute top-2 right-2 hidden group-hover:flex gap-1">
+              <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+              <div className="absolute top-2.5 right-2.5 flex gap-0.5">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     startEdit(item)
                   }}
-                  className="p-1 rounded bg-white text-slate-400 hover:text-brand-600"
+                  className="p-1.5 rounded-md text-slate-400 hover:text-brand-600 hover:bg-slate-50"
                   aria-label="Renommer"
                 >
                   <Pencil size={14} />
@@ -102,7 +102,7 @@ export default function FolderGrid({
                     e.stopPropagation()
                     if (confirm(`Supprimer "${item.name}" ainsi que tout son contenu ?`)) onDelete(item.id)
                   }}
-                  className="p-1 rounded bg-white text-slate-400 hover:text-danger-600"
+                  className="p-1.5 rounded-md text-slate-400 hover:text-danger-600 hover:bg-slate-50"
                   aria-label="Supprimer"
                 >
                   <Trash2 size={14} />

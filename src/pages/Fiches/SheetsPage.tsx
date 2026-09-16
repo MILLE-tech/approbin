@@ -86,7 +86,7 @@ export default function SheetsPage() {
                   e.stopPropagation()
                   if (confirm(`Supprimer la fiche "${sheet.title}" ?`)) deleteSheet.mutate(sheet)
                 }}
-                className="absolute top-2 right-2 hidden group-hover:block p-1 rounded bg-white text-slate-400 hover:text-danger-600"
+                className="absolute top-2.5 right-2.5 p-1.5 rounded-md text-slate-400 hover:text-danger-600 hover:bg-slate-50"
                 aria-label="Supprimer"
               >
                 <Trash2 size={14} />
