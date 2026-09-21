@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Send, CheckCircle2, Link2Off, RefreshCw } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Send, CheckCircle2, Link2Off, RefreshCw, ShieldCheck, User } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import {
   useGenerateTelegramLinkCode,
@@ -7,10 +8,15 @@ import {
   useTelegramLink,
   useUnlinkTelegram,
 } from '../hooks/useTelegramLink'
+import { useIsAdmin } from '../hooks/useAdmin'
+import { useAdminMode } from '../contexts/AdminModeContext'
 
 const BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
+  const { data: isAdmin } = useIsAdmin()
+  const { mode } = useAdminMode()
   const [pendingCode, setPendingCode] = useState<string | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [showHint, setShowHint] = useState(false)
@@ -52,6 +58,22 @@ export default function SettingsPage() {
     <div>
       <PageHeader title="Paramètres" subtitle="Rappel quotidien de révision" />
       <div className="p-5 max-w-md space-y-4">
+        {isAdmin && (
+          <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <p className="text-sm font-semibold text-slate-800 mb-1">Mode</p>
+            <p className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
+              {mode === 'admin' ? <ShieldCheck size={14} /> : <User size={14} />}
+              Vous êtes actuellement en mode {mode === 'admin' ? 'administrateur' : 'utilisateur normal'}.
+            </p>
+            <button
+              onClick={() => navigate('/choix-role')}
+              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+            >
+              Changer de mode
+            </button>
+          </div>
+        )}
+
         {!BOT_USERNAME && (
           <p className="text-sm text-warning-600 bg-warning-50 rounded-lg p-3">
             Le rappel Telegram n'est pas encore configuré pour cette application (variable

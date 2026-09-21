@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
+import { AdminModeProvider } from './contexts/AdminModeContext.tsx'
 import { isSupabaseConfigured } from './lib/supabaseClient.ts'
 import ConfigMissing from './pages/ConfigMissing.tsx'
 
@@ -23,7 +24,9 @@ createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <AdminModeProvider>
+              <App />
+            </AdminModeProvider>
           </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>

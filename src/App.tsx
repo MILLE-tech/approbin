@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
+import RoleChoice from './pages/RoleChoice'
 import AppLayout from './components/AppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -26,6 +27,14 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route
+        path="/choix-role"
+        element={
+          <ProtectedRoute>
+            <RoleChoice />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         element={

@@ -1,6 +1,8 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { BookOpen, HelpCircle, BarChart3, CalendarDays, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useAdminMode } from '../contexts/AdminModeContext'
 import { useIsAdmin } from '../hooks/useAdmin'
 
 const NAV_ITEMS = [
@@ -12,7 +14,20 @@ const NAV_ITEMS = [
 
 export default function AppLayout() {
   const { signOut, user } = useAuth()
-  const { data: isAdmin } = useIsAdmin()
+  const { data: isAdmin, isLoading: checkingAdmin } = useIsAdmin()
+  const { mode } = useAdminMode()
+  const navigate = useNavigate()
+
+  // Un compte admin qui n'a pas encore choisi son mode pour cette session
+  // (connexion récente, ou session restaurée après réouverture du navigateur)
+  // est renvoyé vers l'écran de choix avant d'accéder au reste de l'app.
+  useEffect(() => {
+    if (!checkingAdmin && isAdmin && mode === null) {
+      navigate('/choix-role', { replace: true })
+    }
+  }, [checkingAdmin, isAdmin, mode, navigate])
+
+  const showAdminLink = isAdmin && mode === 'admin'
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
@@ -38,7 +53,7 @@ export default function AppLayout() {
           ))}
         </nav>
         <div className="m-3 space-y-1">
-          {isAdmin && (
+          {showAdminLink && (
             <NavLink
               to="/admin"
               className={({ isActive }) =>
@@ -75,7 +90,7 @@ export default function AppLayout() {
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <h1 className="text-base font-semibold text-slate-900">Approbin</h1>
         <div className="flex items-center gap-3">
-          {isAdmin && (
+          {showAdminLink && (
             <NavLink to="/admin" className="text-slate-400" aria-label="Admin">
               <ShieldCheck size={20} />
             </NavLink>
