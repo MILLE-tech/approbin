@@ -12,6 +12,7 @@ const BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | unde
 
 export default function SettingsPage() {
   const [pendingCode, setPendingCode] = useState<string | null>(null)
+  const [generateError, setGenerateError] = useState<string | null>(null)
   const { data: link, isLoading } = useTelegramLink(!!pendingCode)
   const generateCode = useGenerateTelegramLinkCode()
   const setReminderEnabled = useSetReminderEnabled()
@@ -25,8 +26,13 @@ export default function SettingsPage() {
   }, [isLinked])
 
   async function handleGenerate() {
-    const code = await generateCode.mutateAsync()
-    setPendingCode(code)
+    setGenerateError(null)
+    try {
+      const code = await generateCode.mutateAsync()
+      setPendingCode(code)
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : 'Une erreur est survenue.')
+    }
   }
 
   const deepLink = pendingCode && BOT_USERNAME ? `https://t.me/${BOT_USERNAME}?start=${pendingCode}` : null
@@ -82,7 +88,7 @@ export default function SettingsPage() {
               <p className="text-sm text-slate-600">
                 Ouvrez Telegram et démarrez une conversation avec le bot pour finaliser la liaison :
               </p>
-              {deepLink && (
+              {deepLink ? (
                 <a
                   href={deepLink}
                   target="_blank"
@@ -92,23 +98,38 @@ export default function SettingsPage() {
                   <Send size={16} />
                   Ouvrir Telegram
                 </a>
+              ) : (
+                <p className="text-xs text-warning-600 bg-warning-50 rounded-lg p-2.5">
+                  Le bouton "Ouvrir Telegram" n'est pas disponible (VITE_TELEGRAM_BOT_USERNAME non configuré). Envoyez
+                  manuellement le code ci-dessous au bot.
+                </p>
               )}
-              <p className="text-xs text-slate-400">
-                Ou envoyez manuellement <code className="bg-slate-100 px-1 py-0.5 rounded">/start {pendingCode}</code>{' '}
-                au bot.
+              <p className="text-sm text-slate-600">
+                Code à envoyer au bot :{' '}
+                <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono">/start {pendingCode}</code>
               </p>
               <p className="text-xs text-slate-400">
                 Une fois le message envoyé, revenez sur cette page (ou actualisez-la) pour voir la confirmation.
               </p>
             </div>
           ) : (
-            <button
-              onClick={handleGenerate}
-              disabled={generateCode.isPending}
-              className="rounded-lg bg-brand-600 text-white font-medium px-4 py-2 text-sm hover:bg-brand-700 disabled:opacity-60"
-            >
-              Lier Telegram
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handleGenerate}
+                disabled={generateCode.isPending}
+                className="rounded-lg bg-brand-600 text-white font-medium px-4 py-2 text-sm hover:bg-brand-700 disabled:opacity-60"
+              >
+                {generateCode.isPending ? 'Patientez…' : 'Lier Telegram'}
+              </button>
+              {generateError && (
+                <p className="text-xs text-danger-600 bg-danger-50 rounded-lg p-2.5">
+                  Échec : {generateError}
+                  <br />
+                  Vérifiez que la migration <code className="bg-white px-1 rounded">0002_telegram_reminders.sql</code>{' '}
+                  a bien été exécutée dans Supabase.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>
