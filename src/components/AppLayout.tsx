@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { BookOpen, HelpCircle, BarChart3, CalendarDays, LogOut } from 'lucide-react'
+import { BookOpen, HelpCircle, BarChart3, CalendarDays, LogOut, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const NAV_ITEMS = [
@@ -35,20 +35,38 @@ export default function AppLayout() {
             </NavLink>
           ))}
         </nav>
-        <button
-          onClick={() => signOut()}
-          className="flex items-center gap-3 px-3 py-2.5 m-3 text-sm text-slate-500 hover:bg-slate-100 rounded-lg"
-        >
-          <LogOut size={18} />
-          Déconnexion
-        </button>
+        <div className="m-3 space-y-1">
+          <NavLink
+            to="/parametres"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg ${
+                isActive ? 'bg-brand-50 text-brand-700 font-medium' : 'text-slate-500 hover:bg-slate-100'
+              }`
+            }
+          >
+            <Settings size={18} />
+            Paramètres
+          </NavLink>
+          <button
+            onClick={() => signOut()}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-100 rounded-lg"
+          >
+            <LogOut size={18} />
+            Déconnexion
+          </button>
+        </div>
       </aside>
 
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <h1 className="text-base font-semibold text-slate-900">Approbin</h1>
-        <button onClick={() => signOut()} className="text-slate-400" aria-label="Déconnexion">
-          <LogOut size={20} />
-        </button>
+        <div className="flex items-center gap-3">
+          <NavLink to="/parametres" className="text-slate-400" aria-label="Paramètres">
+            <Settings size={20} />
+          </NavLink>
+          <button onClick={() => signOut()} className="text-slate-400" aria-label="Déconnexion">
+            <LogOut size={20} />
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 pb-16 md:pb-0 overflow-y-auto">

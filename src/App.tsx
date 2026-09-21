@@ -18,6 +18,7 @@ import QuizSession from './pages/Questions/QuizSession'
 
 import StatsPage from './pages/Stats/StatsPage'
 import CalendarPage from './pages/Calendar/CalendarPage'
+import SettingsPage from './pages/SettingsPage'
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
 
         <Route path="/statistiques" element={<StatsPage />} />
         <Route path="/calendrier" element={<CalendarPage />} />
+        <Route path="/parametres" element={<SettingsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

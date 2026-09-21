@@ -65,3 +65,11 @@ export interface QuizAnswer {
 export interface QuestionWithReview extends Question {
   review: QuestionReview | null
 }
+
+export interface TelegramLink {
+  user_id: string
+  chat_id: number | null
+  link_code: string | null
+  reminder_enabled: boolean
+  created_at: string
+}
