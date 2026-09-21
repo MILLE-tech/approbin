@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import PasswordInput from '../components/PasswordInput'
 
 export default function ResetPassword() {
   const { session, loading, updatePassword } = useAuth()
@@ -74,9 +75,8 @@ export default function ResetPassword() {
               <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="password">
                 Nouveau mot de passe
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 required
                 minLength={6}
                 value={password}
@@ -89,9 +89,8 @@ export default function ResetPassword() {
               <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="confirm">
                 Confirmer le mot de passe
               </label>
-              <input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 required
                 minLength={6}
                 value={confirm}

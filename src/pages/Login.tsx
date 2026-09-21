@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import PasswordInput from '../components/PasswordInput'
 
 type Mode = 'signin' | 'signup' | 'reset'
 
@@ -84,9 +85,8 @@ export default function Login() {
               <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="password">
                 Mot de passe
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 required
                 minLength={6}
                 value={password}
