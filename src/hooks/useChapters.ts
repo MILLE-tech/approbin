@@ -14,6 +14,7 @@ export function useChapters(subjectId: string | undefined) {
         .from('chapters')
         .select('*')
         .eq('subject_id', subjectId as string)
+        .eq('user_id', user!.id)
         .order('position', { ascending: true })
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -29,7 +30,12 @@ export function useChapter(id: string | undefined) {
     queryKey: ['chapter', id],
     enabled: !!user && !!id,
     queryFn: async () => {
-      const { data, error } = await supabase.from('chapters').select('*').eq('id', id as string).single()
+      const { data, error } = await supabase
+        .from('chapters')
+        .select('*')
+        .eq('id', id as string)
+        .eq('user_id', user!.id)
+        .single()
       if (error) throw error
       return data as Chapter
     },

@@ -13,6 +13,7 @@ export function useSubjects() {
       const { data, error } = await supabase
         .from('subjects')
         .select('*')
+        .eq('user_id', user!.id)
         .order('position', { ascending: true })
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -28,7 +29,12 @@ export function useSubject(id: string | undefined) {
     queryKey: ['subject', id],
     enabled: !!user && !!id,
     queryFn: async () => {
-      const { data, error } = await supabase.from('subjects').select('*').eq('id', id as string).single()
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .eq('id', id as string)
+        .eq('user_id', user!.id)
+        .single()
       if (error) throw error
       return data as Subject
     },
