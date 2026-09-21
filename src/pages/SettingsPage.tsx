@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Send, CheckCircle2, Link2Off } from 'lucide-react'
+import { Send, CheckCircle2, Link2Off, RefreshCw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import {
   useGenerateTelegramLinkCode,
@@ -13,7 +13,8 @@ const BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | unde
 export default function SettingsPage() {
   const [pendingCode, setPendingCode] = useState<string | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
-  const { data: link, isLoading } = useTelegramLink(!!pendingCode)
+  const [showHint, setShowHint] = useState(false)
+  const { data: link, isLoading, refetch, isFetching } = useTelegramLink(!!pendingCode)
   const generateCode = useGenerateTelegramLinkCode()
   const setReminderEnabled = useSetReminderEnabled()
   const unlink = useUnlinkTelegram()
@@ -24,6 +25,16 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isLinked) setPendingCode(null)
   }, [isLinked])
+
+  // Affiche un encart d'aide si la liaison n'est toujours pas confirmée après 30s.
+  useEffect(() => {
+    if (!pendingCode) {
+      setShowHint(false)
+      return
+    }
+    const timer = setTimeout(() => setShowHint(true), 30_000)
+    return () => clearTimeout(timer)
+  }, [pendingCode])
 
   async function handleGenerate() {
     setGenerateError(null)
@@ -86,7 +97,9 @@ export default function SettingsPage() {
           ) : pendingCode ? (
             <div className="space-y-3">
               <p className="text-sm text-slate-600">
-                Ouvrez Telegram et démarrez une conversation avec le bot pour finaliser la liaison :
+                Ouvrez Telegram, puis appuyez sur <strong>Envoyer</strong> — le message{' '}
+                <code className="bg-slate-100 px-1 py-0.5 rounded">/start {pendingCode}</code> est déjà écrit, mais
+                Telegram ne l'envoie pas tout seul, il faut valider :
               </p>
               {deepLink ? (
                 <a
@@ -108,9 +121,35 @@ export default function SettingsPage() {
                 Code à envoyer au bot :{' '}
                 <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono">/start {pendingCode}</code>
               </p>
+
+              <button
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="flex items-center justify-center gap-1.5 w-full rounded-lg border border-slate-200 text-slate-600 text-xs py-2 hover:bg-slate-50 disabled:opacity-60"
+              >
+                <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+                {isFetching ? 'Vérification…' : 'Vérifier maintenant'}
+              </button>
+
               <p className="text-xs text-slate-400">
-                Une fois le message envoyé, revenez sur cette page (ou actualisez-la) pour voir la confirmation.
+                Cette page se met aussi à jour automatiquement dès que la liaison est confirmée.
               </p>
+
+              {showHint && (
+                <div className="text-xs text-warning-700 bg-warning-50 rounded-lg p-2.5 space-y-1">
+                  <p className="font-medium">Toujours rien après 30 secondes ?</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>
+                      Vérifiez que vous avez bien appuyé sur <strong>Envoyer</strong> dans Telegram (pas seulement
+                      ouvert la conversation).
+                    </li>
+                    <li>
+                      Si le problème persiste, il peut s'agir d'un souci de configuration côté serveur — contactez la
+                      personne qui gère l'application.
+                    </li>
+                  </ul>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-2">

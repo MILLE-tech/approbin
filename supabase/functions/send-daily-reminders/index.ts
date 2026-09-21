@@ -26,6 +26,10 @@ async function sendTelegramMessage(chatId: number, text: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text }),
   })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '<corps illisible>')
+    console.error(`[send-daily-reminders] sendMessage a échoué (chat_id=${chatId}): ${res.status} ${body}`)
+  }
   return res.ok
 }
 
@@ -41,6 +45,7 @@ Deno.serve(async (req) => {
     .not('chat_id', 'is', null)
 
   if (linksError) {
+    console.error(`[send-daily-reminders] échec de la récupération de telegram_links: ${linksError.message}`)
     return new Response(JSON.stringify({ error: linksError.message }), { status: 500 })
   }
   if (!links || links.length === 0) {
@@ -56,6 +61,7 @@ Deno.serve(async (req) => {
     .lte('next_review_at', new Date().toISOString())
 
   if (reviewsError) {
+    console.error(`[send-daily-reminders] échec de la récupération de question_reviews: ${reviewsError.message}`)
     return new Response(JSON.stringify({ error: reviewsError.message }), { status: 500 })
   }
 

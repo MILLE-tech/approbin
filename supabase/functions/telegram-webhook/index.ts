@@ -21,11 +21,16 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 async function sendTelegramMessage(chatId: number, text: string) {
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text }),
   })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '<corps illisible>')
+    console.error(`[telegram-webhook] sendMessage a échoué (chat_id=${chatId}): ${res.status} ${body}`)
+  }
+  return res.ok
 }
 
 Deno.serve(async (req) => {
@@ -66,6 +71,10 @@ Deno.serve(async (req) => {
       .eq('link_code', code)
       .maybeSingle()
 
+    if (error) {
+      console.error(`[telegram-webhook] échec de la recherche par link_code: ${error.message}`)
+    }
+
     if (error || !link) {
       await sendTelegramMessage(
         chatId,
@@ -74,10 +83,14 @@ Deno.serve(async (req) => {
       return new Response('ok')
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('telegram_links')
       .update({ chat_id: chatId, link_code: null, reminder_enabled: true })
       .eq('user_id', link.user_id)
+
+    if (updateError) {
+      console.error(`[telegram-webhook] échec de la mise à jour du chat_id pour user ${link.user_id}: ${updateError.message}`)
+    }
 
     await sendTelegramMessage(
       chatId,
@@ -87,7 +100,13 @@ Deno.serve(async (req) => {
   }
 
   if (text.startsWith('/stop')) {
-    await supabase.from('telegram_links').update({ reminder_enabled: false }).eq('chat_id', chatId)
+    const { error: stopError } = await supabase
+      .from('telegram_links')
+      .update({ reminder_enabled: false })
+      .eq('chat_id', chatId)
+    if (stopError) {
+      console.error(`[telegram-webhook] échec de la désactivation pour chat_id ${chatId}: ${stopError.message}`)
+    }
     await sendTelegramMessage(chatId, '🔕 Rappels désactivés. Envoyez /start depuis Approbin pour les réactiver.')
     return new Response('ok')
   }

@@ -92,7 +92,24 @@ VITE_TELEGRAM_BOT_USERNAME=ApprobinRappels_bot
 
 ### Utilisation
 
-Chaque utilisateur va dans **Paramètres** dans l'app, clique sur **Lier Telegram**, puis **Ouvrir Telegram** (ou envoie manuellement le code affiché au bot). Une fois lié, il reçoit le rappel quotidien automatiquement et peut le désactiver avec `/stop` envoyé au bot, ou depuis la page Paramètres.
+Chaque utilisateur va dans **Paramètres** dans l'app, clique sur **Lier Telegram**, puis **Ouvrir Telegram** (ou envoie manuellement le code affiché au bot). Important : Telegram ne fait que pré-remplir le message `/start <code>`, l'utilisateur doit lui-même appuyer sur **Envoyer**. Une fois lié, il reçoit le rappel quotidien automatiquement et peut le désactiver avec `/stop` envoyé au bot, ou depuis la page Paramètres.
+
+### Dépannage
+
+Si un utilisateur signale que rien ne se passe après avoir envoyé `/start <code>` sur Telegram (pas de réponse du bot, pas de confirmation dans Approbin) :
+
+1. **Vérifiez que le webhook est bien enregistré.** Ouvrez cette URL dans un navigateur (remplacez `<TELEGRAM_BOT_TOKEN>`) :
+
+   ```
+   https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
+   ```
+
+   - Si `"url"` est vide, le webhook n'a jamais été enregistré : refaites l'étape 4 ci-dessus (setWebhook).
+   - Si `"last_error_message"` contient un texte, c'est l'erreur exacte rencontrée par Telegram lors de la dernière tentative (souvent : jeton invalide, ou `secret_token` qui ne correspond pas au secret `TELEGRAM_WEBHOOK_SECRET` configuré dans Supabase).
+
+2. **Consultez les logs de la fonction.** Dashboard Supabase → **Edge Functions** → **telegram-webhook** → onglet **Logs**. Renvoyez `/start <code>` depuis Telegram puis rafraîchissez : une entrée doit apparaître immédiatement. Si aucune entrée n'apparaît, Telegram ne parvient pas jusqu'à la fonction (revenir au point 1). Si une entrée apparaît avec une erreur, elle indique précisément ce qui a échoué (appel à l'API Telegram, ou mise à jour de la base de données).
+
+3. **Après toute modification du code des fonctions**, elles ne se redéploient pas automatiquement (contrairement au frontend sur Vercel) : recopiez le contenu mis à jour de `supabase/functions/telegram-webhook/index.ts` (ou `send-daily-reminders/index.ts`) dans l'éditeur du Dashboard Supabase (**Edge Functions** → la fonction concernée), puis cliquez sur **Deploy**.
 
 ## Panneau admin (optionnel)
 
