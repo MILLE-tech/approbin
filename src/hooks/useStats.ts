@@ -36,12 +36,13 @@ function add(counts: ResultCounts, result: QuizResult) {
   counts.total += 1
 }
 
-export function useStats(daysWindow = 30) {
+export function useStats(daysWindow = 30, targetUserId?: string) {
   const { user } = useAuth()
+  const scopedUserId = targetUserId ?? user?.id
 
   return useQuery({
-    queryKey: ['stats', user?.id, daysWindow],
-    enabled: !!user,
+    queryKey: ['stats', scopedUserId, daysWindow],
+    enabled: !!user && !!scopedUserId,
     queryFn: async (): Promise<StatsData> => {
       const { data, error } = await supabase
         .from('quiz_answers')
@@ -50,7 +51,7 @@ export function useStats(daysWindow = 30) {
            chapter:chapters!inner ( name ),
            subject:subjects!inner ( name )`,
         )
-        .eq('user_id', user!.id)
+        .eq('user_id', scopedUserId as string)
         .order('answered_at', { ascending: true })
 
       if (error) throw error

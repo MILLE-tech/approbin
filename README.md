@@ -22,12 +22,13 @@ Application web (PWA) de révision : fiches de cours organisées par matière/ch
 - **Statistiques** : taux et nombre de réponses validées / en apprentissage / échouées, par matière, par chapitre et par jour.
 - **Calendrier** : vue mensuelle des questions programmées, colorée selon leur statut.
 - **Rappel quotidien Telegram** (optionnel) : message envoyé automatiquement à 18h à chaque utilisateur ayant lié son compte, s'il a des questions à réviser ce jour-là. Voir la section dédiée ci-dessous.
+- **Panneau admin** (optionnel) : consultation en lecture seule des données de n'importe quel utilisateur (utile pour du support), réservée aux comptes explicitement désignés admin. Voir la section dédiée ci-dessous.
 
 ## Configuration (Supabase)
 
 1. Créez un projet sur [supabase.com](https://supabase.com).
 2. Dans le **SQL Editor** du projet, exécutez le contenu de `supabase/migrations/0001_init.sql`. Ce script crée les tables (`subjects`, `chapters`, `sheets`, `questions`, `question_reviews`, `quiz_answers`), active la Row Level Security (chaque utilisateur ne voit que ses propres données) et crée le bucket de stockage `sheets` pour les fichiers importés.
-   Exécutez aussi `supabase/migrations/0002_telegram_reminders.sql` (table de liaison Telegram) — nécessaire même si vous n'activez pas les rappels tout de suite. `0003_schedule_reminders.sql` est à exécuter plus tard, une fois le rappel Telegram configuré (voir plus bas).
+   Exécutez aussi `supabase/migrations/0002_telegram_reminders.sql` (table de liaison Telegram) — nécessaire même si vous n'activez pas les rappels tout de suite. `0003_schedule_reminders.sql` est à exécuter plus tard, une fois le rappel Telegram configuré (voir plus bas). `0004_admin.sql` est à exécuter si vous voulez activer le panneau admin (voir plus bas), sinon vous pouvez l'ignorer.
 3. Dans **Project Settings → API**, récupérez `Project URL` et la clé `anon public`.
 4. Copiez `.env.example` vers `.env` et renseignez ces deux valeurs :
 
@@ -92,6 +93,24 @@ VITE_TELEGRAM_BOT_USERNAME=ApprobinRappels_bot
 ### Utilisation
 
 Chaque utilisateur va dans **Paramètres** dans l'app, clique sur **Lier Telegram**, puis **Ouvrir Telegram** (ou envoie manuellement le code affiché au bot). Une fois lié, il reçoit le rappel quotidien automatiquement et peut le désactiver avec `/stop` envoyé au bot, ou depuis la page Paramètres.
+
+## Panneau admin (optionnel)
+
+Permet de consulter en **lecture seule** les données de n'importe quel utilisateur (matières, chapitres, nombre de fiches/questions, statistiques de quizz) — utile pour diagnostiquer un problème signalé par un utilisateur. Aucune modification n'est possible depuis cet écran.
+
+1. Dans le **SQL Editor**, exécutez `supabase/migrations/0004_admin.sql`.
+2. Tout en bas du fichier, une requête en commentaire vous permet de vous rendre admin **avec votre compte Approbin existant** (pas de compte séparé à créer) :
+
+   ```sql
+   insert into public.admin_users (user_id)
+   select id from auth.users where email = 'votre-email@exemple.com';
+   ```
+
+   Remplacez `votre-email@exemple.com` par l'email de votre compte, puis exécutez cette requête seule dans le SQL Editor.
+3. Reconnectez-vous à l'app (ou rafraîchissez la page) : un lien **Admin** apparaît dans le menu.
+4. Depuis cet écran, recherchez un utilisateur par email pour voir ses matières/chapitres et ses statistiques.
+
+Pour ajouter un autre admin plus tard, relancez la même requête `insert` avec son email.
 
 ## Développement
 

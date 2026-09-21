@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { BookOpen, HelpCircle, BarChart3, CalendarDays, LogOut, Settings } from 'lucide-react'
+import { BookOpen, HelpCircle, BarChart3, CalendarDays, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useIsAdmin } from '../hooks/useAdmin'
 
 const NAV_ITEMS = [
   { to: '/fiches', label: 'Fiches', icon: BookOpen },
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
 
 export default function AppLayout() {
   const { signOut, user } = useAuth()
+  const { data: isAdmin } = useIsAdmin()
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
@@ -36,6 +38,19 @@ export default function AppLayout() {
           ))}
         </nav>
         <div className="m-3 space-y-1">
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg ${
+                  isActive ? 'bg-brand-50 text-brand-700 font-medium' : 'text-slate-500 hover:bg-slate-100'
+                }`
+              }
+            >
+              <ShieldCheck size={18} />
+              Admin
+            </NavLink>
+          )}
           <NavLink
             to="/parametres"
             className={({ isActive }) =>
@@ -60,6 +75,11 @@ export default function AppLayout() {
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <h1 className="text-base font-semibold text-slate-900">Approbin</h1>
         <div className="flex items-center gap-3">
+          {isAdmin && (
+            <NavLink to="/admin" className="text-slate-400" aria-label="Admin">
+              <ShieldCheck size={20} />
+            </NavLink>
+          )}
           <NavLink to="/parametres" className="text-slate-400" aria-label="Paramètres">
             <Settings size={20} />
           </NavLink>
