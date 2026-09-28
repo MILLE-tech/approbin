@@ -16,6 +16,8 @@ import CreateQuestionsChapters from './pages/Questions/CreateQuestionsChapters'
 import CreateQuestionsManager from './pages/Questions/CreateQuestionsManager'
 import QuizSelection from './pages/Questions/QuizSelection'
 import QuizSession from './pages/Questions/QuizSession'
+import ExamSelection from './pages/Questions/ExamSelection'
+import ExamSession from './pages/Questions/ExamSession'
 
 import StatsPage from './pages/Stats/StatsPage'
 import CalendarPage from './pages/Calendar/CalendarPage'
@@ -56,6 +58,8 @@ function App() {
         <Route path="/questions/creer/:subjectId/:chapterId" element={<CreateQuestionsManager />} />
         <Route path="/questions/quizz" element={<QuizSelection />} />
         <Route path="/questions/quizz/session" element={<QuizSession />} />
+        <Route path="/questions/examen" element={<ExamSelection />} />
+        <Route path="/questions/examen/session" element={<ExamSession />} />
 
         <Route path="/statistiques" element={<StatsPage />} />
         <Route path="/calendrier" element={<CalendarPage />} />

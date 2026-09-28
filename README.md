@@ -15,10 +15,13 @@ Application web (PWA) de révision : fiches de cours organisées par matière/ch
 ## Fonctionnalités
 
 - **Fiches** : matières → chapitres → fiches, renommables et supprimables. Une fiche peut être rédigée manuellement ou créée par import d'un document (PDF, image, etc.). Export PDF pour les fiches manuelles.
-- **Questions** : création manuelle de questions/réponses par chapitre, et quiz avec répétition espacée :
-  - **Échoué** → la question revient 5 minutes plus tard, dans la même session.
-  - **En apprentissage** → la question revient le lendemain.
-  - **Validé** → paliers progressifs 3 → 5 → 7 → 14 → 21 → 30 → 45 jours (le palier se réinitialise en cas d'échec).
+- **Questions** : création manuelle de questions/réponses par chapitre (texte libre ou écriture comptable structurée), et quiz avec répétition espacée :
+  - **Échoué** → la question revient simplement en fin de file dans la session en cours (pas de minuteur).
+  - **En apprentissage** → la question revient le lendemain, à minuit.
+  - **Validé** → paliers progressifs 3 → 5 → 7 → 14 → 21 → 30 → 45 jours à minuit (le palier se réinitialise en cas d'échec).
+  - Une question peut être marquée **inversable** : 1 fois sur 4, le quizz affiche la réponse et demande de retrouver la question.
+  - Une question peut être **désactivée** (fond jaune dans la liste) pour l'exclure des quiz sans la supprimer.
+- **Mode Examen** : entraînement libre par matière/chapitre, nombre de questions au choix (15 par défaut), répétable à l'infini sans délai. Ne modifie ni le calendrier ni la progression des révisions ; affiche un score à la fin.
 - **Statistiques** : taux et nombre de réponses validées / en apprentissage / échouées, par matière, par chapitre et par jour.
 - **Calendrier** : vue mensuelle des questions programmées, colorée selon leur statut.
 - **Rappel quotidien Telegram** (optionnel) : message envoyé automatiquement à 18h à chaque utilisateur ayant lié son compte, s'il a des questions à réviser ce jour-là. Voir la section dédiée ci-dessous.
@@ -28,7 +31,7 @@ Application web (PWA) de révision : fiches de cours organisées par matière/ch
 
 1. Créez un projet sur [supabase.com](https://supabase.com).
 2. Dans le **SQL Editor** du projet, exécutez le contenu de `supabase/migrations/0001_init.sql`. Ce script crée les tables (`subjects`, `chapters`, `sheets`, `questions`, `question_reviews`, `quiz_answers`), active la Row Level Security (chaque utilisateur ne voit que ses propres données) et crée le bucket de stockage `sheets` pour les fichiers importés.
-   Exécutez aussi `supabase/migrations/0002_telegram_reminders.sql` (table de liaison Telegram) — nécessaire même si vous n'activez pas les rappels tout de suite. `0003_schedule_reminders.sql` est à exécuter plus tard, une fois le rappel Telegram configuré (voir plus bas). `0004_admin.sql` est à exécuter si vous voulez activer le panneau admin (voir plus bas), sinon vous pouvez l'ignorer.
+   Exécutez aussi `supabase/migrations/0002_telegram_reminders.sql` (table de liaison Telegram) — nécessaire même si vous n'activez pas les rappels tout de suite. `0003_schedule_reminders.sql` est à exécuter plus tard, une fois le rappel Telegram configuré (voir plus bas). `0004_admin.sql` est à exécuter si vous voulez activer le panneau admin (voir plus bas), sinon vous pouvez l'ignorer. Exécutez enfin `0005_questions_features.sql` (mode examen, questions inversables/désactivables, mode comptabilité, et correction des échéances déjà planifiées pour qu'elles tombent à minuit).
 3. Dans **Project Settings → API**, récupérez `Project URL` et la clé `anon public`.
 4. Copiez `.env.example` vers `.env` et renseignez ces deux valeurs :
 

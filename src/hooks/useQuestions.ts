@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
-import type { Question } from '../types/database'
+import type { AccountingData, Question, QuestionType } from '../types/database'
 
 export function useQuestions(chapterId: string | undefined) {
   const { user } = useAuth()
@@ -22,16 +22,33 @@ export function useQuestions(chapterId: string | undefined) {
   })
 }
 
+interface QuestionInput {
+  question: string
+  answer: string
+  questionType: QuestionType
+  accountingData: AccountingData | null
+  canReverse: boolean
+}
+
 export function useCreateQuestion(chapterId: string | undefined) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ question, answer }: { question: string; answer: string }) => {
+    mutationFn: async ({ question, answer, questionType, accountingData, canReverse }: QuestionInput) => {
       if (!user || !chapterId) throw new Error('Contexte invalide')
       const { data, error } = await supabase
         .from('questions')
-        .insert({ question, answer, chapter_id: chapterId, user_id: user.id })
+        .insert({
+          question,
+          answer,
+          chapter_id: chapterId,
+          user_id: user.id,
+          question_type: questionType,
+          accounting_data: accountingData,
+          can_reverse: canReverse,
+          active: true,
+        })
         .select()
         .single()
       if (error) throw error
@@ -56,8 +73,35 @@ export function useUpdateQuestion(chapterId: string | undefined) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, question, answer }: { id: string; question: string; answer: string }) => {
-      const { error } = await supabase.from('questions').update({ question, answer }).eq('id', id)
+    mutationFn: async ({ id, question, answer, questionType, accountingData }: QuestionInput & { id: string }) => {
+      const { error } = await supabase
+        .from('questions')
+        .update({ question, answer, question_type: questionType, accounting_data: accountingData })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['questions', chapterId] }),
+  })
+}
+
+export function useToggleQuestionActive(chapterId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const { error } = await supabase.from('questions').update({ active }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['questions', chapterId] }),
+  })
+}
+
+export function useToggleQuestionReverse(chapterId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, canReverse }: { id: string; canReverse: boolean }) => {
+      const { error } = await supabase.from('questions').update({ can_reverse: canReverse }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['questions', chapterId] }),
