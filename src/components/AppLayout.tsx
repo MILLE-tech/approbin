@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BookOpen, HelpCircle, BarChart3, CalendarDays, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import { BookOpen, HelpCircle, BarChart3, CalendarDays, Download, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAdminMode } from '../contexts/AdminModeContext'
 import { useIsAdmin } from '../hooks/useAdmin'
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: '/questions', label: 'Questions', icon: HelpCircle },
   { to: '/statistiques', label: 'Statistiques', icon: BarChart3 },
   { to: '/calendrier', label: 'Calendrier', icon: CalendarDays },
+  { to: '/export', label: 'Export', icon: Download },
 ]
 
 export default function AppLayout() {

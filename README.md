@@ -9,21 +9,24 @@ Application web (PWA) de révision : fiches de cours organisées par matière/ch
 - React Router
 - TanStack Query
 - Supabase (authentification, base de données Postgres, stockage de fichiers)
-- jsPDF + html2canvas (export PDF des fiches)
+- jsPDF + html2canvas (export PDF des fiches) et docx (export Word)
 - vite-plugin-pwa (installation sur mobile, fonctionnement hors-ligne du shell applicatif)
 
 ## Fonctionnalités
 
 - **Fiches** : matières → chapitres → fiches, renommables et supprimables. Une fiche peut être rédigée manuellement ou créée par import d'un document (PDF, image, etc.). Export PDF pour les fiches manuelles.
-- **Questions** : création manuelle de questions/réponses par chapitre (texte libre ou écriture comptable structurée), et quiz avec répétition espacée :
+- **Questions** : création manuelle de questions/réponses par chapitre (texte libre, écriture comptable structurée, ou tableau libre avec entêtes personnalisées), et quiz avec répétition espacée :
   - **Échoué** → la question revient simplement en fin de file dans la session en cours (pas de minuteur).
   - **En apprentissage** → la question revient le lendemain, à minuit.
   - **Validé** → paliers progressifs 3 → 5 → 7 → 14 → 21 → 30 → 45 jours à minuit (le palier se réinitialise en cas d'échec).
   - Une question peut être marquée **inversable** : 1 fois sur 4, le quizz affiche la réponse et demande de retrouver la question.
   - Une question peut être **désactivée** (fond jaune dans la liste) pour l'exclure des quiz sans la supprimer.
+  - **Recherche** par mot-clé dans toutes les questions, avec les mêmes actions (modifier/inverser/activer/supprimer).
+  - **Validation des chapitres** : nombre de questions affiché par chapitre et bouton pour marquer un chapitre comme "prêt" (devient vert), pour suivre où il reste des questions à créer.
 - **Mode Examen** : entraînement libre par matière/chapitre, nombre de questions au choix (15 par défaut), répétable à l'infini sans délai. Ne modifie ni le calendrier ni la progression des révisions ; affiche un score à la fin.
 - **Statistiques** : taux et nombre de réponses validées / en apprentissage / échouées, par matière, par chapitre et par jour.
 - **Calendrier** : vue mensuelle des questions programmées, colorée selon leur statut.
+- **Export** : export de vos fiches et/ou questions (par matière/chapitre choisi) en PDF ou Word, pour en garder une trace.
 - **Rappel quotidien Telegram** (optionnel) : message envoyé automatiquement à 18h à chaque utilisateur ayant lié son compte, s'il a des questions à réviser ce jour-là. Voir la section dédiée ci-dessous.
 - **Panneau admin** (optionnel) : consultation en lecture seule des données de n'importe quel utilisateur (utile pour du support), réservée aux comptes explicitement désignés admin. Voir la section dédiée ci-dessous.
 
@@ -31,7 +34,7 @@ Application web (PWA) de révision : fiches de cours organisées par matière/ch
 
 1. Créez un projet sur [supabase.com](https://supabase.com).
 2. Dans le **SQL Editor** du projet, exécutez le contenu de `supabase/migrations/0001_init.sql`. Ce script crée les tables (`subjects`, `chapters`, `sheets`, `questions`, `question_reviews`, `quiz_answers`), active la Row Level Security (chaque utilisateur ne voit que ses propres données) et crée le bucket de stockage `sheets` pour les fichiers importés.
-   Exécutez aussi `supabase/migrations/0002_telegram_reminders.sql` (table de liaison Telegram) — nécessaire même si vous n'activez pas les rappels tout de suite. `0003_schedule_reminders.sql` est à exécuter plus tard, une fois le rappel Telegram configuré (voir plus bas). `0004_admin.sql` est à exécuter si vous voulez activer le panneau admin (voir plus bas), sinon vous pouvez l'ignorer. Exécutez enfin `0005_questions_features.sql` (mode examen, questions inversables/désactivables, mode comptabilité, et correction des échéances déjà planifiées pour qu'elles tombent à minuit).
+   Exécutez aussi `supabase/migrations/0002_telegram_reminders.sql` (table de liaison Telegram) — nécessaire même si vous n'activez pas les rappels tout de suite. `0003_schedule_reminders.sql` est à exécuter plus tard, une fois le rappel Telegram configuré (voir plus bas). `0004_admin.sql` est à exécuter si vous voulez activer le panneau admin (voir plus bas), sinon vous pouvez l'ignorer. Exécutez enfin `0005_questions_features.sql` (mode examen, questions inversables/désactivables, mode comptabilité, et correction des échéances déjà planifiées pour qu'elles tombent à minuit), puis `0006_table_questions_and_chapter_validation.sql` (3e type de question "tableau" et validation des chapitres).
 3. Dans **Project Settings → API**, récupérez `Project URL` et la clé `anon public`.
 4. Copiez `.env.example` vers `.env` et renseignez ces deux valeurs :
 

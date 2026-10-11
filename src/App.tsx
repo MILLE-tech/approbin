@@ -22,6 +22,7 @@ import QuestionsSearch from './pages/Questions/QuestionsSearch'
 
 import StatsPage from './pages/Stats/StatsPage'
 import CalendarPage from './pages/Calendar/CalendarPage'
+import ExportPage from './pages/Export/ExportPage'
 import SettingsPage from './pages/SettingsPage'
 import AdminPage from './pages/Admin/AdminPage'
 
@@ -65,6 +66,7 @@ function App() {
 
         <Route path="/statistiques" element={<StatsPage />} />
         <Route path="/calendrier" element={<CalendarPage />} />
+        <Route path="/export" element={<ExportPage />} />
         <Route path="/parametres" element={<SettingsPage />} />
         <Route path="/admin" element={<AdminPage />} />
       </Route>
