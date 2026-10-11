@@ -1,7 +1,7 @@
 export type ReviewStatus = 'nouveau' | 'reussi' | 'apprentissage' | 'echec'
 export type QuizResult = 'reussi' | 'apprentissage' | 'echec'
 export type SheetSourceType = 'manual' | 'import'
-export type QuestionType = 'text' | 'accounting'
+export type QuestionType = 'text' | 'accounting' | 'table'
 
 export interface AccountingRow {
   compteDebit: string
@@ -14,6 +14,12 @@ export interface AccountingRow {
 export interface AccountingData {
   date: string
   rows: AccountingRow[]
+}
+
+export interface TableData {
+  title: string
+  headers: string[]
+  rows: string[][]
 }
 
 export interface Subject {
@@ -31,6 +37,7 @@ export interface Chapter {
   name: string
   position: number
   created_at: string
+  questions_ready: boolean
 }
 
 export interface Sheet {
@@ -58,6 +65,7 @@ export interface Question {
   can_reverse: boolean
   question_type: QuestionType
   accounting_data: AccountingData | null
+  table_data: TableData | null
 }
 
 export interface QuestionReview {

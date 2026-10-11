@@ -3,8 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2, RotateCcw, ThumbsDown, ThumbsUp, Trophy } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
+import GenericTable, { emptyTableData } from '../../components/GenericTable'
 import { useExamQuestionPool, type ExamQuestion } from '../../hooks/useExam'
-import type { AccountingData } from '../../types/database'
+import type { AccountingData, TableData } from '../../types/database'
 
 interface Draw extends ExamQuestion {
   reversed: boolean
@@ -32,6 +33,7 @@ export default function ExamSession() {
   const [score, setScore] = useState(0)
   const [userAnswer, setUserAnswer] = useState('')
   const [accountingAnswer, setAccountingAnswer] = useState<AccountingData>(emptyAccountingData())
+  const [tableAnswer, setTableAnswer] = useState<TableData>(emptyTableData())
   const [revealed, setRevealed] = useState(false)
 
   useEffect(() => {
@@ -47,6 +49,7 @@ export default function ExamSession() {
     setScore(0)
     setUserAnswer('')
     setAccountingAnswer(emptyAccountingData())
+    setTableAnswer(emptyTableData())
     setRevealed(false)
   }
 
@@ -54,6 +57,7 @@ export default function ExamSession() {
     if (correct) setScore((s) => s + 1)
     setUserAnswer('')
     setAccountingAnswer(emptyAccountingData())
+    setTableAnswer(emptyTableData())
     setRevealed(false)
     setIndex((i) => i + 1)
   }
@@ -110,6 +114,7 @@ export default function ExamSession() {
 
   const current = draws[index]
   const isAccounting = current.question_type === 'accounting' && !current.reversed
+  const isTable = current.question_type === 'table' && !current.reversed
   const prompt = current.reversed ? current.answer : current.question
   const correctAnswerText = current.reversed ? current.question : current.answer
 
@@ -133,6 +138,8 @@ export default function ExamSession() {
 
         {isAccounting ? (
           <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} />
+        ) : isTable ? (
+          <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
         ) : (
           <textarea
             value={userAnswer}
@@ -146,7 +153,16 @@ export default function ExamSession() {
 
         {!revealed ? (
           <button
-            onClick={() => setRevealed(true)}
+            onClick={() => {
+              if (isTable && current.table_data) {
+                setTableAnswer({
+                  title: current.table_data.title,
+                  headers: current.table_data.headers,
+                  rows: current.table_data.rows.map((r) => r.map(() => '')),
+                })
+              }
+              setRevealed(true)
+            }}
             className="w-full rounded-lg bg-brand-600 text-white font-medium py-2.5 text-sm hover:bg-brand-700"
           >
             Voir la réponse
@@ -160,6 +176,8 @@ export default function ExamSession() {
               </p>
               {isAccounting && current.accounting_data ? (
                 <AccountingTable data={current.accounting_data} readOnly />
+              ) : isTable && current.table_data ? (
+                <GenericTable data={current.table_data} readOnly />
               ) : (
                 <p className="text-sm text-slate-700">{correctAnswerText}</p>
               )}

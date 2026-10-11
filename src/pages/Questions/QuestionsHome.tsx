@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, ListPlus, PlayCircle } from 'lucide-react'
+import { GraduationCap, ListPlus, PlayCircle, Search } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import { useDueOverview } from '../../hooks/useQuiz'
 
@@ -48,6 +48,17 @@ export default function QuestionsHome() {
             <p className="text-sm text-slate-400 mt-0.5">
               Entraînez-vous à l'infini sans toucher au calendrier ni à votre progression.
             </p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate('/questions/recherche')}
+          className="flex flex-col items-start gap-3 bg-white border border-slate-200 rounded-2xl p-6 text-left hover:border-brand-300 hover:shadow-sm transition"
+        >
+          <Search className="text-brand-500" size={28} />
+          <div>
+            <p className="font-semibold text-slate-900">Recherche</p>
+            <p className="text-sm text-slate-400 mt-0.5">Retrouvez une question dans toutes vos matières.</p>
           </div>
         </button>
       </div>

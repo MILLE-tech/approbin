@@ -18,6 +18,7 @@ import QuizSelection from './pages/Questions/QuizSelection'
 import QuizSession from './pages/Questions/QuizSession'
 import ExamSelection from './pages/Questions/ExamSelection'
 import ExamSession from './pages/Questions/ExamSession'
+import QuestionsSearch from './pages/Questions/QuestionsSearch'
 
 import StatsPage from './pages/Stats/StatsPage'
 import CalendarPage from './pages/Calendar/CalendarPage'
@@ -60,6 +61,7 @@ function App() {
         <Route path="/questions/quizz/session" element={<QuizSession />} />
         <Route path="/questions/examen" element={<ExamSelection />} />
         <Route path="/questions/examen/session" element={<ExamSession />} />
+        <Route path="/questions/recherche" element={<QuestionsSearch />} />
 
         <Route path="/statistiques" element={<StatsPage />} />
         <Route path="/calendrier" element={<CalendarPage />} />

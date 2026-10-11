@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
-import type { AccountingData, QuestionType } from '../types/database'
+import type { AccountingData, QuestionType, TableData } from '../types/database'
 
 export interface ExamQuestion {
   question_id: string
@@ -9,6 +9,7 @@ export interface ExamQuestion {
   answer: string
   question_type: QuestionType
   accounting_data: AccountingData | null
+  table_data: TableData | null
   can_reverse: boolean
   chapter_id: string
   chapter_name: string
@@ -87,7 +88,7 @@ export function useExamQuestionPool(chapterIds: string[] | null, enabled: boolea
       let query = supabase
         .from('questions')
         .select(
-          `id, question, answer, question_type, accounting_data, can_reverse, chapter_id,
+          `id, question, answer, question_type, accounting_data, table_data, can_reverse, chapter_id,
            chapter:chapters!inner ( id, name, subject_id,
              subject:subjects!inner ( id, name ) )`,
         )
@@ -108,6 +109,7 @@ export function useExamQuestionPool(chapterIds: string[] | null, enabled: boolea
         answer: row.answer,
         question_type: row.question_type,
         accounting_data: row.accounting_data,
+        table_data: row.table_data,
         can_reverse: row.can_reverse,
         chapter_id: row.chapter.id,
         chapter_name: row.chapter.name,

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Folder, Pencil, Plus, Trash2, Check, X } from 'lucide-react'
 
 export interface FolderItem {
@@ -6,8 +6,8 @@ export interface FolderItem {
   name: string
 }
 
-interface FolderGridProps {
-  items: FolderItem[]
+interface FolderGridProps<T extends FolderItem> {
+  items: T[]
   onOpen: (id: string) => void
   onCreate: (name: string) => unknown
   onRename: (id: string, name: string) => unknown
@@ -15,9 +15,15 @@ interface FolderGridProps {
   emptyLabel: string
   newLabel: string
   isLoading?: boolean
+  /** Contenu additionnel affiché sous le nom (ex: nombre de questions). */
+  renderExtra?: (item: T) => ReactNode
+  /** Bouton additionnel affiché à côté de "Renommer"/"Supprimer". */
+  renderAction?: (item: T) => ReactNode
+  /** Classes additionnelles sur la carte (ex: fond vert si validée). */
+  cardClassName?: (item: T) => string
 }
 
-export default function FolderGrid({
+export default function FolderGrid<T extends FolderItem>({
   items,
   onOpen,
   onCreate,
@@ -26,7 +32,10 @@ export default function FolderGrid({
   emptyLabel,
   newLabel,
   isLoading,
-}: FolderGridProps) {
+  renderExtra,
+  renderAction,
+  cardClassName,
+}: FolderGridProps<T>) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [creating, setCreating] = useState(false)
@@ -63,7 +72,9 @@ export default function FolderGrid({
       {items.map((item) => (
         <div
           key={item.id}
-          className="group relative bg-white border border-slate-200 rounded-xl p-4 pr-14 hover:border-brand-300 hover:shadow-sm transition cursor-pointer"
+          className={`group relative border rounded-xl p-4 pr-14 hover:shadow-sm transition cursor-pointer ${
+            cardClassName ? cardClassName(item) : 'bg-white border-slate-200 hover:border-brand-300'
+          }`}
           onClick={() => editingId !== item.id && onOpen(item.id)}
         >
           {editingId === item.id ? (
@@ -86,7 +97,9 @@ export default function FolderGrid({
             <>
               <Folder className="text-brand-500 mb-2" size={22} />
               <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+              {renderExtra && <div onClick={(e) => e.stopPropagation()}>{renderExtra(item)}</div>}
               <div className="absolute top-2.5 right-2.5 flex gap-0.5">
+                {renderAction && <div onClick={(e) => e.stopPropagation()}>{renderAction(item)}</div>}
                 <button
                   onClick={(e) => {
                     e.stopPropagation()

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Pencil, Plus, Trash2, Check, X, Repeat, Power, Calculator, Type } from 'lucide-react'
+import { Plus, Repeat, Calculator, Table2, Type } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
+import GenericTable, { emptyTableData } from '../../components/GenericTable'
+import QuestionRow from '../../components/QuestionRow'
 import { useChapter } from '../../hooks/useChapters'
 import {
   useCreateQuestion,
@@ -12,7 +14,7 @@ import {
   useToggleQuestionReverse,
   useUpdateQuestion,
 } from '../../hooks/useQuestions'
-import type { AccountingData, Question, QuestionType } from '../../types/database'
+import type { AccountingData, QuestionType, TableData } from '../../types/database'
 
 export default function CreateQuestionsManager() {
   const { chapterId } = useParams<{ subjectId: string; chapterId: string }>()
@@ -28,53 +30,28 @@ export default function CreateQuestionsManager() {
   const [newQuestion, setNewQuestion] = useState('')
   const [newAnswer, setNewAnswer] = useState('')
   const [newAccounting, setNewAccounting] = useState<AccountingData>(emptyAccountingData())
+  const [newTable, setNewTable] = useState<TableData>(emptyTableData())
   const [newCanReverse, setNewCanReverse] = useState(false)
-
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editType, setEditType] = useState<QuestionType>('text')
-  const [editQuestion, setEditQuestion] = useState('')
-  const [editAnswer, setEditAnswer] = useState('')
-  const [editAccounting, setEditAccounting] = useState<AccountingData>(emptyAccountingData())
 
   async function handleAdd() {
     if (!newQuestion.trim()) return
     if (newType === 'text' && !newAnswer.trim()) return
     if (newType === 'accounting' && !newAccounting.date.trim()) return
+    if (newType === 'table' && !newTable.title.trim()) return
 
     await createQuestion.mutateAsync({
       question: newQuestion.trim(),
       answer: newType === 'text' ? newAnswer.trim() : '',
       questionType: newType,
       accountingData: newType === 'accounting' ? newAccounting : null,
+      tableData: newType === 'table' ? newTable : null,
       canReverse: newType === 'text' && newCanReverse,
     })
     setNewQuestion('')
     setNewAnswer('')
     setNewAccounting(emptyAccountingData())
+    setNewTable(emptyTableData())
     setNewCanReverse(false)
-  }
-
-  function startEdit(q: Question) {
-    setEditingId(q.id)
-    setEditType(q.question_type)
-    setEditQuestion(q.question)
-    setEditAnswer(q.answer)
-    setEditAccounting(q.accounting_data ?? emptyAccountingData())
-  }
-
-  async function commitEdit() {
-    if (!editingId || !editQuestion.trim()) return
-    if (editType === 'text' && !editAnswer.trim()) return
-
-    await updateQuestion.mutateAsync({
-      id: editingId,
-      question: editQuestion.trim(),
-      answer: editType === 'text' ? editAnswer.trim() : '',
-      questionType: editType,
-      accountingData: editType === 'accounting' ? editAccounting : null,
-      canReverse: false, // non modifié ici, voir le bouton "Inverser" de la ligne
-    })
-    setEditingId(null)
   }
 
   return (
@@ -82,27 +59,23 @@ export default function CreateQuestionsManager() {
       <PageHeader title={chapter?.name ?? 'Chapitre'} subtitle="Vos questions de quizz" back />
       <div className="p-5 max-w-2xl space-y-5">
         <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-sm font-medium text-slate-700">Nouvelle question</p>
             <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
-              <button
-                onClick={() => setNewType('text')}
-                className={`flex items-center gap-1 px-2.5 py-1.5 ${
-                  newType === 'text' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <Type size={13} />
-                Texte
-              </button>
-              <button
-                onClick={() => setNewType('accounting')}
-                className={`flex items-center gap-1 px-2.5 py-1.5 border-l border-slate-200 ${
-                  newType === 'accounting' ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <Calculator size={13} />
-                Comptabilité
-              </button>
+              {(['text', 'accounting', 'table'] as QuestionType[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setNewType(t)}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 ${
+                    newType === t ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-50'
+                  } ${t !== 'text' ? 'border-l border-slate-200' : ''}`}
+                >
+                  {t === 'text' && <Type size={13} />}
+                  {t === 'accounting' && <Calculator size={13} />}
+                  {t === 'table' && <Table2 size={13} />}
+                  {t === 'text' ? 'Texte' : t === 'accounting' ? 'Comptabilité' : 'Tableau'}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -114,7 +87,7 @@ export default function CreateQuestionsManager() {
             className="w-full text-sm border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
 
-          {newType === 'text' ? (
+          {newType === 'text' && (
             <textarea
               value={newAnswer}
               onChange={(e) => setNewAnswer(e.target.value)}
@@ -122,9 +95,9 @@ export default function CreateQuestionsManager() {
               rows={2}
               className="w-full text-sm border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
-          ) : (
-            <AccountingTable data={newAccounting} onChange={setNewAccounting} />
           )}
+          {newType === 'accounting' && <AccountingTable data={newAccounting} onChange={setNewAccounting} />}
+          {newType === 'table' && <GenericTable data={newTable} onChange={setNewTable} />}
 
           <div className="flex items-center gap-2">
             <button
@@ -160,91 +133,14 @@ export default function CreateQuestionsManager() {
 
         <div className="space-y-3">
           {questions?.map((q) => (
-            <div
+            <QuestionRow
               key={q.id}
-              className={`border rounded-xl p-4 ${
-                q.active ? 'bg-white border-slate-200' : 'bg-warning-50 border-warning-200'
-              }`}
-            >
-              {editingId === q.id ? (
-                <div className="space-y-2">
-                  <textarea
-                    value={editQuestion}
-                    onChange={(e) => setEditQuestion(e.target.value)}
-                    rows={2}
-                    className="w-full text-sm border border-brand-300 rounded-lg p-2.5 focus:outline-none"
-                  />
-                  {editType === 'text' ? (
-                    <textarea
-                      value={editAnswer}
-                      onChange={(e) => setEditAnswer(e.target.value)}
-                      rows={2}
-                      className="w-full text-sm border border-brand-300 rounded-lg p-2.5 focus:outline-none"
-                    />
-                  ) : (
-                    <AccountingTable data={editAccounting} onChange={setEditAccounting} />
-                  )}
-                  <div className="flex gap-2">
-                    <button onClick={commitEdit} className="text-success-600">
-                      <Check size={18} />
-                    </button>
-                    <button onClick={() => setEditingId(null)} className="text-slate-400">
-                      <X size={18} />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    {!q.active && (
-                      <p className="text-[11px] font-medium text-warning-700 uppercase mb-1">Désactivée</p>
-                    )}
-                    {q.question_type === 'accounting' && (
-                      <p className="flex items-center gap-1 text-[11px] font-medium text-brand-600 mb-1">
-                        <Calculator size={12} />
-                        Écriture comptable {q.accounting_data?.date && `· ${q.accounting_data.date}`}
-                      </p>
-                    )}
-                    {q.can_reverse && (
-                      <p className="flex items-center gap-1 text-[11px] font-medium text-slate-400 mb-1">
-                        <Repeat size={12} />
-                        Inversion activée
-                      </p>
-                    )}
-                    <p className="text-sm font-medium text-slate-800">{q.question}</p>
-                    {q.question_type === 'text' && <p className="text-sm text-slate-500 mt-1">{q.answer}</p>}
-                  </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => startEdit(q)} className="p-1.5 text-slate-400 hover:text-brand-600" title="Modifier">
-                      <Pencil size={15} />
-                    </button>
-                    {q.question_type === 'text' && (
-                      <button
-                        onClick={() => toggleReverse.mutate({ id: q.id, canReverse: !q.can_reverse })}
-                        className={`p-1.5 ${q.can_reverse ? 'text-brand-600' : 'text-slate-400 hover:text-brand-600'}`}
-                        title="Inverser question/réponse 1 fois sur 4"
-                      >
-                        <Repeat size={15} />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => toggleActive.mutate({ id: q.id, active: !q.active })}
-                      className={`p-1.5 ${q.active ? 'text-slate-400 hover:text-warning-600' : 'text-warning-600'}`}
-                      title={q.active ? 'Désactiver' : 'Activer'}
-                    >
-                      <Power size={15} />
-                    </button>
-                    <button
-                      onClick={() => confirm('Supprimer cette question ?') && deleteQuestion.mutate(q.id)}
-                      className="p-1.5 text-slate-400 hover:text-danger-600"
-                      title="Supprimer"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+              question={q}
+              onUpdate={(input) => updateQuestion.mutateAsync(input)}
+              onToggleActive={(active) => toggleActive.mutate({ id: q.id, active })}
+              onToggleReverse={(canReverse) => toggleReverse.mutate({ id: q.id, canReverse })}
+              onDelete={() => deleteQuestion.mutate(q.id)}
+            />
           ))}
         </div>
       </div>
