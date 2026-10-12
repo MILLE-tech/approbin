@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { m, AnimatePresence } from 'motion/react'
 import { Search, ShieldCheck, User } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import StackedBar from '../../components/StackedBar'
 import { useAdminSearchUsers, useAdminUserOverview, useIsAdmin } from '../../hooks/useAdmin'
 import { useStats } from '../../hooks/useStats'
+import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
+import { springs, reducedMotionTransition, listItemVariants, revealVariants } from '../../lib/motionTokens'
 
 export default function AdminPage() {
   const { data: isAdmin, isLoading: checkingAdmin } = useIsAdmin()
@@ -15,6 +18,10 @@ export default function AdminPage() {
   const { data: results, isLoading: searching } = useAdminSearchUsers(query)
   const { data: overview, isLoading: loadingOverview } = useAdminUserOverview(selectedUserId)
   const { data: stats, isLoading: loadingStats } = useStats(30, selectedUserId ?? undefined)
+  const { reducedMotion } = useMotionPreferences()
+  const transition = reducedMotion ? reducedMotionTransition : springs.default
+  const iVariants = listItemVariants(reducedMotion)
+  const rVariants = revealVariants(reducedMotion)
 
   if (checkingAdmin) {
     return <p className="p-5 text-sm text-slate-400">Chargement…</p>
@@ -47,75 +54,91 @@ export default function AdminPage() {
 
         {results && results.length > 0 && (
           <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
-            {results.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => {
-                  setSelectedUserId(r.id)
-                  setSelectedEmail(r.email ?? '')
-                }}
-                className={`w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm hover:bg-slate-50 ${
-                  selectedUserId === r.id ? 'bg-brand-50 text-brand-700' : 'text-slate-700'
-                }`}
-              >
-                <User size={14} />
-                {r.email}
-              </button>
-            ))}
+            <AnimatePresence>
+              {results.map((r) => (
+                <m.button
+                  key={r.id}
+                  initial={iVariants.initial}
+                  animate={iVariants.animate}
+                  exit={iVariants.exit}
+                  transition={transition}
+                  whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+                  onClick={() => {
+                    setSelectedUserId(r.id)
+                    setSelectedEmail(r.email ?? '')
+                  }}
+                  className={`w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm hover:bg-slate-50 ${
+                    selectedUserId === r.id ? 'bg-brand-50 text-brand-700' : 'text-slate-700'
+                  }`}
+                >
+                  <User size={14} />
+                  {r.email}
+                </m.button>
+              ))}
+            </AnimatePresence>
           </div>
         )}
 
-        {selectedUserId && (
-          <div className="space-y-5">
-            <h3 className="text-sm font-semibold text-slate-800">{selectedEmail}</h3>
+        <AnimatePresence>
+          {selectedUserId && (
+            <m.div
+              key={selectedUserId}
+              initial={rVariants.initial}
+              animate={rVariants.animate}
+              exit={rVariants.exit}
+              transition={transition}
+              className="space-y-5"
+            >
+              <h3 className="text-sm font-semibold text-slate-800">{selectedEmail}</h3>
 
-            <section>
-              <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Matières et chapitres</h4>
-              {loadingOverview && <p className="text-sm text-slate-400">Chargement…</p>}
-              {overview && overview.length === 0 && (
-                <p className="text-sm text-slate-400">Aucune matière créée par cet utilisateur.</p>
-              )}
-              <div className="space-y-3">
-                {overview?.map((subject) => (
-                  <div key={subject.id} className="bg-white border border-slate-200 rounded-xl p-4">
-                    <p className="text-sm font-medium text-slate-800 mb-2">{subject.name}</p>
-                    {subject.chapters.length === 0 ? (
-                      <p className="text-xs text-slate-400">Aucun chapitre.</p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {subject.chapters.map((c) => (
-                          <li key={c.id} className="flex items-center justify-between text-xs text-slate-500">
-                            <span>{c.name}</span>
-                            <span>
-                              {c.sheetsCount} fiche{c.sheetsCount > 1 ? 's' : ''} · {c.questionsCount} question
-                              {c.questionsCount > 1 ? 's' : ''}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Statistiques de quizz (30 derniers jours)</h4>
-              {loadingStats && <p className="text-sm text-slate-400">Chargement…</p>}
-              {stats && (
-                <div className="bg-white border border-slate-200 rounded-xl p-4">
-                  <p className="text-xs text-slate-400 mb-2">{stats.overall.total} réponses au total</p>
-                  <StackedBar
-                    reussi={stats.overall.reussi}
-                    apprentissage={stats.overall.apprentissage}
-                    echec={stats.overall.echec}
-                    total={stats.overall.total}
-                  />
+              <section>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Matières et chapitres</h4>
+                {loadingOverview && <p className="text-sm text-slate-400">Chargement…</p>}
+                {overview && overview.length === 0 && (
+                  <p className="text-sm text-slate-400">Aucune matière créée par cet utilisateur.</p>
+                )}
+                <div className="space-y-3">
+                  {overview?.map((subject) => (
+                    <div key={subject.id} className="bg-white border border-slate-200 rounded-xl p-4">
+                      <p className="text-sm font-medium text-slate-800 mb-2">{subject.name}</p>
+                      {subject.chapters.length === 0 ? (
+                        <p className="text-xs text-slate-400">Aucun chapitre.</p>
+                      ) : (
+                        <ul className="space-y-1">
+                          {subject.chapters.map((c) => (
+                            <li key={c.id} className="flex items-center justify-between text-xs text-slate-500">
+                              <span>{c.name}</span>
+                              <span>
+                                {c.sheetsCount} fiche{c.sheetsCount > 1 ? 's' : ''} · {c.questionsCount} question
+                                {c.questionsCount > 1 ? 's' : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
-            </section>
-          </div>
-        )}
+              </section>
+
+              <section>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Statistiques de quizz (30 derniers jours)</h4>
+                {loadingStats && <p className="text-sm text-slate-400">Chargement…</p>}
+                {stats && (
+                  <div className="bg-white border border-slate-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-400 mb-2">{stats.overall.total} réponses au total</p>
+                    <StackedBar
+                      reussi={stats.overall.reussi}
+                      apprentissage={stats.overall.apprentissage}
+                      echec={stats.overall.echec}
+                      total={stats.overall.total}
+                    />
+                  </div>
+                )}
+              </section>
+            </m.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )
