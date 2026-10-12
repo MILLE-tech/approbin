@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import type { AccountingData, AccountingRow } from '../types/database'
 
@@ -24,6 +25,47 @@ export function formatAmount(value: string): string {
   return formatTotal(parseAmount(value))
 }
 
+function groupThousands(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
+/**
+ * Formatage "en direct" pendant la saisie : espace milliers sur la partie
+ * entière, décimales telles que tapées (pas de .toFixed, sinon impossible
+ * de taper "3000," sans qu'il redevienne "3000,00" à chaque frappe).
+ */
+export function formatAmountInput(raw: string): string {
+  const match = raw.match(/^(\d*)([.,](\d*))?$/)
+  if (!match) return raw
+  const [, intPart, sep, decPart] = match
+  const groupedInt = groupThousands(intPart)
+  return sep === undefined ? groupedInt : `${groupedInt},${decPart ?? ''}`
+}
+
+// "Significatif" = chiffre OU séparateur décimal (., ,) : tout ce qui survit
+// au filtrage brut. Compter aussi le séparateur est indispensable, sinon
+// taper la virgule puis un chiffre insère ce chiffre AVANT elle (les deux
+// finissent du même côté d'un simple compte de chiffres).
+function countSignificantBefore(str: string, pos: number): number {
+  let count = 0
+  for (let i = 0; i < pos && i < str.length; i++) {
+    if (/[\d.,]/.test(str[i])) count++
+  }
+  return count
+}
+
+function cursorAfterNthSignificant(str: string, n: number): number {
+  if (n <= 0) return 0
+  let count = 0
+  for (let i = 0; i < str.length; i++) {
+    if (/[\d.,]/.test(str[i])) {
+      count++
+      if (count === n) return i + 1
+    }
+  }
+  return str.length
+}
+
 export function accountingTotals(data: AccountingData) {
   return {
     totalDebit: data.rows.reduce((sum, row) => sum + parseAmount(row.montantDebit), 0),
@@ -39,6 +81,32 @@ interface AccountingTableProps {
 
 const cellClass = 'w-full text-sm px-2 py-1.5 focus:outline-none focus:bg-brand-50 bg-transparent'
 const numberCellClass = `${cellClass} text-right font-mono`
+
+/**
+ * Champ montant avec espace milliers affiché en direct pendant la saisie.
+ * La valeur stockée (onChange) reste le texte brut non formaté ; seul
+ * l'affichage dans le champ change — avec un repositionnement manuel du
+ * curseur (compté en nombre de chiffres avant lui) pour qu'il ne saute pas
+ * quand un espace apparaît ou disparaît.
+ */
+function AmountInput({ value, onChange, className }: { value: string; onChange: (next: string) => void; className: string }) {
+  function handleChange(e: ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget
+    const domValue = input.value
+    const cursor = input.selectionStart ?? domValue.length
+    const significantBeforeCursor = countSignificantBefore(domValue, cursor)
+    const raw = domValue.replace(/[^0-9.,]/g, '')
+    const formatted = formatAmountInput(raw)
+    const newCursor = cursorAfterNthSignificant(formatted, significantBeforeCursor)
+    // Pré-positionne la valeur/le curseur avant que React ne re-rende avec le
+    // même résultat : rien à corriger côté React, donc pas de saut de curseur.
+    input.value = formatted
+    input.setSelectionRange(newCursor, newCursor)
+    onChange(raw)
+  }
+
+  return <input value={formatAmountInput(value)} inputMode="decimal" onChange={handleChange} className={className} />
+}
 
 export default function AccountingTable({ data, onChange, readOnly = false }: AccountingTableProps) {
   const editable = !readOnly && !!onChange
@@ -116,10 +184,9 @@ export default function AccountingTable({ data, onChange, readOnly = false }: Ac
               </td>
               <td className="border-r border-slate-100">
                 {editable ? (
-                  <input
+                  <AmountInput
                     value={row.montantDebit}
-                    inputMode="decimal"
-                    onChange={(e) => updateRow(i, { montantDebit: e.target.value.replace(/[^0-9.,]/g, '') })}
+                    onChange={(v) => updateRow(i, { montantDebit: v })}
                     className={numberCellClass}
                   />
                 ) : (
@@ -128,10 +195,9 @@ export default function AccountingTable({ data, onChange, readOnly = false }: Ac
               </td>
               <td>
                 {editable ? (
-                  <input
+                  <AmountInput
                     value={row.montantCredit}
-                    inputMode="decimal"
-                    onChange={(e) => updateRow(i, { montantCredit: e.target.value.replace(/[^0-9.,]/g, '') })}
+                    onChange={(v) => updateRow(i, { montantCredit: v })}
                     className={numberCellClass}
                   />
                 ) : (
