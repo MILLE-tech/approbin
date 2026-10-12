@@ -1,4 +1,10 @@
-import type { Transition } from 'motion/react'
+import type { Transition, TargetAndTransition } from 'motion/react'
+
+interface SimpleVariants {
+  initial: TargetAndTransition
+  animate: TargetAndTransition
+  exit?: TargetAndTransition
+}
 
 /**
  * Springs, pas de durées fixes. L'API bounce + duration de Motion est le
@@ -26,3 +32,42 @@ export const reducedMotionTransition: Transition = { duration: 0.15, ease: 'line
 /** Feedback au press : scale sur whileTap, jamais sur release. */
 export const pressScale = { scale: 0.96 }
 export const pressScaleSubtle = { scale: 0.98 }
+
+/**
+ * Entrée/sortie d'une question à l'autre (quizz/examen) : toujours dans le
+ * même sens (on avance), jamais aléatoire, pour rester spatialement
+ * cohérent. Simple fondu sous reduced-motion (pas de glissement).
+ */
+export function questionVariants(reducedMotion: boolean): SimpleVariants {
+  if (reducedMotion) {
+    return { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+  }
+  return {
+    initial: { opacity: 0, x: 24 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -24 },
+  }
+}
+
+/** Apparition de la correction / des actions une fois la réponse révélée. */
+export function revealVariants(reducedMotion: boolean): SimpleVariants {
+  if (reducedMotion) {
+    return { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+  }
+  return {
+    initial: { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 8 },
+  }
+}
+
+/** Écran de fin (session terminée / examen fini) : une seule apparition, satisfaisante. */
+export function completionVariants(reducedMotion: boolean): SimpleVariants {
+  if (reducedMotion) {
+    return { initial: { opacity: 0 }, animate: { opacity: 1 } }
+  }
+  return {
+    initial: { opacity: 0, scale: 0.9 },
+    animate: { opacity: 1, scale: 1 },
+  }
+}
