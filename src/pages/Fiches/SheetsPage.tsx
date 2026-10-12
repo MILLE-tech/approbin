@@ -1,13 +1,18 @@
 import { useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { m, AnimatePresence } from 'motion/react'
 import { FileText, FilePlus, Upload, Trash2, Paperclip } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import { useChapter } from '../../hooks/useChapters'
 import { useCreateManualSheet, useDeleteSheet, useImportSheet, useSheets } from '../../hooks/useSheets'
+import { useConfirm } from '../../contexts/ConfirmContext'
+import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
+import { springs, reducedMotionTransition, listItemVariants } from '../../lib/motionTokens'
 
 export default function SheetsPage() {
   const { subjectId, chapterId } = useParams<{ subjectId: string; chapterId: string }>()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const { data: chapter } = useChapter(chapterId)
   const { data: sheets, isLoading } = useSheets(chapterId)
   const createManual = useCreateManualSheet(chapterId)
@@ -16,6 +21,9 @@ export default function SheetsPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
+  const { reducedMotion } = useMotionPreferences()
+  const transition = reducedMotion ? reducedMotionTransition : springs.snappy
+  const iVariants = listItemVariants(reducedMotion)
 
   async function handleCreateManual() {
     const sheet = await createManual.mutateAsync({ title: 'Nouvelle fiche', content: '' })
@@ -65,34 +73,42 @@ export default function SheetsPage() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {sheets?.map((sheet) => (
-            <div
-              key={sheet.id}
-              onClick={() => navigate(`/fiches/${subjectId}/${chapterId}/${sheet.id}`)}
-              className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:border-brand-300 hover:shadow-sm transition cursor-pointer"
-            >
-              {sheet.source_type === 'import' ? (
-                <Paperclip className="text-brand-500 mb-2" size={20} />
-              ) : (
-                <FileText className="text-brand-500 mb-2" size={20} />
-              )}
-              <p className="text-sm font-medium text-slate-800 truncate pr-6">{sheet.title}</p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {sheet.source_type === 'import' ? 'Document importé' : 'Fiche manuelle'} ·{' '}
-                {new Date(sheet.created_at).toLocaleDateString('fr-FR')}
-              </p>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (confirm(`Supprimer la fiche "${sheet.title}" ?`)) deleteSheet.mutate(sheet)
-                }}
-                className="absolute top-2.5 right-2.5 p-1.5 rounded-md text-slate-400 hover:text-danger-600 hover:bg-slate-50"
-                aria-label="Supprimer"
+          <AnimatePresence>
+            {sheets?.map((sheet) => (
+              <m.div
+                key={sheet.id}
+                initial={iVariants.initial}
+                animate={iVariants.animate}
+                exit={iVariants.exit}
+                transition={transition}
+                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+                onClick={() => navigate(`/fiches/${subjectId}/${chapterId}/${sheet.id}`)}
+                className="group relative bg-white border border-slate-200 rounded-xl p-4 hover:border-brand-300 hover:shadow-sm transition cursor-pointer"
               >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
+                {sheet.source_type === 'import' ? (
+                  <Paperclip className="text-brand-500 mb-2" size={20} />
+                ) : (
+                  <FileText className="text-brand-500 mb-2" size={20} />
+                )}
+                <p className="text-sm font-medium text-slate-800 truncate pr-6">{sheet.title}</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {sheet.source_type === 'import' ? 'Document importé' : 'Fiche manuelle'} ·{' '}
+                  {new Date(sheet.created_at).toLocaleDateString('fr-FR')}
+                </p>
+                <m.button
+                  whileTap={reducedMotion ? undefined : { scale: 0.9 }}
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    if (await confirm(`Supprimer la fiche "${sheet.title}" ?`)) deleteSheet.mutate(sheet)
+                  }}
+                  className="absolute top-2.5 right-2.5 p-1.5 rounded-md text-slate-400 hover:text-danger-600 hover:bg-slate-50"
+                  aria-label="Supprimer"
+                >
+                  <Trash2 size={14} />
+                </m.button>
+              </m.div>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     </div>

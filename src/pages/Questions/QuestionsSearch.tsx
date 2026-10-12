@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AnimatePresence } from 'motion/react'
 import { Search } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import QuestionRow from '../../components/QuestionRow'
@@ -41,18 +42,20 @@ export default function QuestionsSearch() {
         )}
 
         <div className="space-y-3">
-          {results?.map((q) => (
-            <QuestionRow
-              key={q.id}
-              question={q}
-              subjectName={q.subject_name}
-              chapterName={q.chapter_name}
-              onUpdate={(input) => updateQuestion.mutateAsync(input)}
-              onToggleActive={(active) => toggleActive.mutate({ id: q.id, active })}
-              onToggleReverse={(canReverse) => toggleReverse.mutate({ id: q.id, canReverse })}
-              onDelete={() => deleteQuestion.mutate(q.id)}
-            />
-          ))}
+          <AnimatePresence>
+            {results?.map((q) => (
+              <QuestionRow
+                key={q.id}
+                question={q}
+                subjectName={q.subject_name}
+                chapterName={q.chapter_name}
+                onUpdate={(input) => updateQuestion.mutateAsync(input)}
+                onToggleActive={(active) => toggleActive.mutate({ id: q.id, active })}
+                onToggleReverse={(canReverse) => toggleReverse.mutate({ id: q.id, canReverse })}
+                onDelete={() => deleteQuestion.mutate(q.id)}
+              />
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     </div>

@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import { m, AnimatePresence } from 'motion/react'
 import { Download, FileText, FileType2 } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import { useExportOverview, useExportContent } from '../../hooks/useExport'
 import { exportToPdf, exportToWord } from '../../lib/exportDocument'
+import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
+import { springs, reducedMotionTransition, revealVariants } from '../../lib/motionTokens'
 
 type Format = 'pdf' | 'word'
 
@@ -14,6 +17,9 @@ export default function ExportPage() {
   const [format, setFormat] = useState<Format>('pdf')
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { reducedMotion } = useMotionPreferences()
+  const transition = reducedMotion ? reducedMotionTransition : springs.default
+  const rVariants = revealVariants(reducedMotion)
 
   const allChapterIds = overview?.flatMap((s) => s.chapters.map((c) => c.id)) ?? []
   const chapterIds = selected.size === 0 ? allChapterIds : Array.from(selected)
@@ -92,24 +98,26 @@ export default function ExportPage() {
             <section>
               <h3 className="text-sm font-semibold text-slate-700 mb-2">Format</h3>
               <div className="flex gap-3">
-                <button
+                <m.button
+                  whileTap={reducedMotion ? undefined : { scale: 0.96 }}
                   onClick={() => setFormat('pdf')}
-                  className={`flex items-center gap-2 border rounded-lg px-4 py-2.5 text-sm ${
+                  className={`flex items-center gap-2 border rounded-lg px-4 py-2.5 text-sm transition-colors ${
                     format === 'pdf' ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <FileText size={16} />
                   PDF
-                </button>
-                <button
+                </m.button>
+                <m.button
+                  whileTap={reducedMotion ? undefined : { scale: 0.96 }}
                   onClick={() => setFormat('word')}
-                  className={`flex items-center gap-2 border rounded-lg px-4 py-2.5 text-sm ${
+                  className={`flex items-center gap-2 border rounded-lg px-4 py-2.5 text-sm transition-colors ${
                     format === 'word' ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <FileType2 size={16} />
                   Word
-                </button>
+                </m.button>
               </div>
             </section>
 
@@ -143,16 +151,29 @@ export default function ExportPage() {
               </div>
             </section>
 
-            {error && <p className="text-sm text-danger-600">{error}</p>}
+            <AnimatePresence>
+              {error && (
+                <m.p
+                  initial={rVariants.initial}
+                  animate={rVariants.animate}
+                  exit={rVariants.exit}
+                  transition={transition}
+                  className="text-sm text-danger-600"
+                >
+                  {error}
+                </m.p>
+              )}
+            </AnimatePresence>
 
-            <button
+            <m.button
+              whileTap={reducedMotion || exporting ? undefined : { scale: 0.97 }}
               onClick={handleExport}
               disabled={exporting || (!includeSheets && !includeQuestions)}
               className="flex items-center gap-2 rounded-lg bg-brand-600 text-white font-medium px-5 py-2.5 text-sm hover:bg-brand-700 disabled:opacity-60"
             >
               <Download size={16} />
               {exporting ? 'Génération…' : 'Exporter'}
-            </button>
+            </m.button>
           </>
         )}
       </div>

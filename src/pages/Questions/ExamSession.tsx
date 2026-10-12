@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { m, AnimatePresence } from 'motion/react'
 import { CheckCircle2, RotateCcw, ThumbsDown, ThumbsUp, Trophy } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
 import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
 import { useExamQuestionPool, type ExamQuestion } from '../../hooks/useExam'
+import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
+import { springs, reducedMotionTransition, questionVariants, revealVariants, completionVariants } from '../../lib/motionTokens'
 import type { AccountingData, TableData } from '../../types/database'
 
 interface Draw extends ExamQuestion {
@@ -25,6 +28,8 @@ export default function ExamSession() {
   const location = useLocation()
   const { chapterIds, length } = (location.state as { chapterIds?: string[]; length?: number } | null) ?? {}
   const examLength = length ?? 15
+  const { reducedMotion } = useMotionPreferences()
+  const transition = reducedMotion ? reducedMotionTransition : springs.default
 
   const { data: pool, isLoading } = useExamQuestionPool(chapterIds ?? null, true)
 
@@ -91,10 +96,16 @@ export default function ExamSession() {
   const finished = index >= draws.length
 
   if (finished) {
+    const cVariants = completionVariants(reducedMotion)
     return (
       <div>
         <PageHeader title="Mode Examen" back />
-        <div className="p-8 text-center max-w-md mx-auto">
+        <m.div
+          className="p-8 text-center max-w-md mx-auto"
+          initial={cVariants.initial}
+          animate={cVariants.animate}
+          transition={transition}
+        >
           <Trophy className="text-brand-500 mx-auto mb-3" size={40} />
           <p className="text-lg font-semibold text-slate-900">Examen fini !</p>
           <p className="text-3xl font-semibold text-slate-900 mt-2">
@@ -104,21 +115,23 @@ export default function ExamSession() {
             Ce résultat n'affecte ni votre calendrier ni la progression de vos questions.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center mt-6">
-            <button
+            <m.button
+              whileTap={reducedMotion ? undefined : { scale: 0.96 }}
               onClick={restart}
               className="flex items-center justify-center gap-2 rounded-lg bg-brand-600 text-white font-medium px-5 py-2.5 text-sm hover:bg-brand-700"
             >
               <RotateCcw size={16} />
               Refaire un examen
-            </button>
-            <button
+            </m.button>
+            <m.button
+              whileTap={reducedMotion ? undefined : { scale: 0.96 }}
               onClick={() => navigate('/questions')}
               className="rounded-lg border border-slate-200 text-slate-600 font-medium px-5 py-2.5 text-sm hover:bg-slate-50"
             >
               Retour
-            </button>
+            </m.button>
           </div>
-        </div>
+        </m.div>
       </div>
     )
   }
@@ -128,6 +141,8 @@ export default function ExamSession() {
   const isTable = current.question_type === 'table' && !current.reversed
   const prompt = current.reversed ? current.answer : current.question
   const correctAnswerText = current.reversed ? current.question : current.answer
+  const qVariants = questionVariants(reducedMotion)
+  const rVariants = revealVariants(reducedMotion)
 
   return (
     <div>
@@ -141,68 +156,96 @@ export default function ExamSession() {
           </span>
         }
       />
-      <div className="p-5 max-w-xl mx-auto space-y-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          {current.reversed && <p className="text-[11px] font-medium text-brand-600 uppercase mb-1.5">Question inversée</p>}
-          <p className="text-base font-medium text-slate-900">{prompt}</p>
-        </div>
-
-        {isAccounting ? (
-          <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} />
-        ) : isTable ? (
-          <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
-        ) : (
-          <textarea
-            value={userAnswer}
-            onChange={(e) => setUserAnswer(e.target.value)}
-            placeholder="Votre réponse…"
-            rows={4}
-            disabled={revealed}
-            className="w-full text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-slate-50"
-          />
-        )}
-
-        {!revealed ? (
-          <button
-            onClick={() => setRevealed(true)}
-            className="w-full rounded-lg bg-brand-600 text-white font-medium py-2.5 text-sm hover:bg-brand-700"
+      <div className="p-5 max-w-xl mx-auto">
+        <AnimatePresence mode="wait">
+          <m.div
+            key={`${current.question_id}-${index}`}
+            initial={qVariants.initial}
+            animate={qVariants.animate}
+            exit={qVariants.exit}
+            transition={transition}
+            className="space-y-4"
           >
-            Voir la réponse
-          </button>
-        ) : (
-          <div className="space-y-4">
-            <div className="bg-brand-50 border border-brand-100 rounded-xl p-4">
-              <p className="text-xs font-medium text-brand-700 mb-2 flex items-center gap-1">
-                <CheckCircle2 size={13} />
-                Bonne réponse
-              </p>
-              {isAccounting && current.accounting_data ? (
-                <AccountingTable data={current.accounting_data} readOnly />
-              ) : isTable && current.table_data ? (
-                <GenericTable data={current.table_data} readOnly />
-              ) : (
-                <p className="text-sm text-slate-700">{correctAnswerText}</p>
-              )}
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              {current.reversed && <p className="text-[11px] font-medium text-brand-600 uppercase mb-1.5">Question inversée</p>}
+              <p className="text-base font-medium text-slate-900">{prompt}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => grade(true)}
-                className="flex items-center justify-center gap-1.5 rounded-lg bg-success-500 text-white py-3 text-sm font-semibold hover:bg-success-600"
-              >
-                <ThumbsUp size={16} />
-                J'avais juste
-              </button>
-              <button
-                onClick={() => grade(false)}
-                className="flex items-center justify-center gap-1.5 rounded-lg bg-danger-500 text-white py-3 text-sm font-semibold hover:bg-danger-600"
-              >
-                <ThumbsDown size={16} />
-                J'avais faux
-              </button>
-            </div>
-          </div>
-        )}
+            {isAccounting ? (
+              <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} />
+            ) : isTable ? (
+              <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
+            ) : (
+              <textarea
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                placeholder="Votre réponse…"
+                rows={4}
+                disabled={revealed}
+                className="w-full text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-slate-50"
+              />
+            )}
+
+            <AnimatePresence mode="wait">
+              {!revealed ? (
+                <m.button
+                  key="reveal-button"
+                  initial={rVariants.initial}
+                  animate={rVariants.animate}
+                  exit={rVariants.exit}
+                  transition={transition}
+                  whileTap={reducedMotion ? undefined : { scale: 0.97 }}
+                  onClick={() => setRevealed(true)}
+                  className="w-full rounded-lg bg-brand-600 text-white font-medium py-2.5 text-sm hover:bg-brand-700"
+                >
+                  Voir la réponse
+                </m.button>
+              ) : (
+                <m.div
+                  key="reveal-content"
+                  initial={rVariants.initial}
+                  animate={rVariants.animate}
+                  exit={rVariants.exit}
+                  transition={transition}
+                  className="space-y-4"
+                >
+                  <div className="bg-brand-50 border border-brand-100 rounded-xl p-4">
+                    <p className="text-xs font-medium text-brand-700 mb-2 flex items-center gap-1">
+                      <CheckCircle2 size={13} />
+                      Bonne réponse
+                    </p>
+                    {isAccounting && current.accounting_data ? (
+                      <AccountingTable data={current.accounting_data} readOnly />
+                    ) : isTable && current.table_data ? (
+                      <GenericTable data={current.table_data} readOnly />
+                    ) : (
+                      <p className="text-sm text-slate-700">{correctAnswerText}</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <m.button
+                      whileTap={reducedMotion ? undefined : { scale: 0.95 }}
+                      onClick={() => grade(true)}
+                      className="flex items-center justify-center gap-1.5 rounded-lg bg-success-500 text-white py-3 text-sm font-semibold hover:bg-success-600"
+                    >
+                      <ThumbsUp size={16} />
+                      J'avais juste
+                    </m.button>
+                    <m.button
+                      whileTap={reducedMotion ? undefined : { scale: 0.95 }}
+                      onClick={() => grade(false)}
+                      className="flex items-center justify-center gap-1.5 rounded-lg bg-danger-500 text-white py-3 text-sm font-semibold hover:bg-danger-600"
+                    >
+                      <ThumbsDown size={16} />
+                      J'avais faux
+                    </m.button>
+                  </div>
+                </m.div>
+              )}
+            </AnimatePresence>
+          </m.div>
+        </AnimatePresence>
       </div>
     </div>
   )
