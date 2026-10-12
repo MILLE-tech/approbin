@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { m, AnimatePresence } from 'motion/react'
 import { BookOpen, HelpCircle, BarChart3, CalendarDays, Download, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAdminMode } from '../contexts/AdminModeContext'
 import { useIsAdmin } from '../hooks/useAdmin'
 import { useMotionPreferences } from '../contexts/MotionPreferencesContext'
-import { springs, reducedMotionTransition } from '../lib/motionTokens'
+import { springs, reducedMotionTransition, directionalVariants } from '../lib/motionTokens'
 
 const NAV_ITEMS = [
   { to: '/fiches', label: 'Fiches', icon: BookOpen },
@@ -27,6 +27,13 @@ export default function AppLayout() {
   const { reducedMotion, reducedTransparency } = useMotionPreferences()
   const navigate = useNavigate()
   const location = useLocation()
+  // Capturé une seule fois par rendu : contrairement à <Outlet/> (qui est un
+  // composant vivant, re-abonné au contexte de routage), cette valeur gelée
+  // garde le contenu de l'ANCIENNE page pendant qu'AnimatePresence la fait
+  // sortir — sinon <Outlet/> bascule sur la nouvelle route avant même que
+  // l'animation de sortie n'ait joué, d'où un flash de la nouvelle page à
+  // pleine opacité avant la vraie animation d'entrée.
+  const outlet = useOutlet()
 
   const mainRef = useRef<HTMLElement>(null)
   const prevDepthRef = useRef(pathDepth(location.pathname))
@@ -56,13 +63,7 @@ export default function AppLayout() {
 
   const showAdminLink = isAdmin && mode === 'admin'
   const transition = reducedMotion ? reducedMotionTransition : springs.default
-  const offset = reducedMotion ? 0 : 20
-
-  const pageVariants = {
-    initial: { opacity: 0, x: direction === 0 ? 0 : direction * offset },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: direction === 0 ? 0 : direction * -offset },
-  }
+  const pageVariants = directionalVariants(20, reducedMotion)
 
   const barSurface = reducedTransparency
     ? 'bg-white'
@@ -144,15 +145,17 @@ export default function AppLayout() {
       </header>
 
       <main ref={mainRef} className="flex-1 pb-16 md:pb-0 overflow-y-auto overflow-x-hidden">
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait" initial={false} custom={direction}>
           <m.div
             key={location.pathname}
-            initial={pageVariants.initial}
-            animate={pageVariants.animate}
-            exit={pageVariants.exit}
+            custom={direction}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
             transition={transition}
           >
-            <Outlet />
+            {outlet}
           </m.div>
         </AnimatePresence>
       </main>

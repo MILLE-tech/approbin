@@ -1,4 +1,4 @@
-import type { Transition, TargetAndTransition } from 'motion/react'
+import type { Transition, TargetAndTransition, Variants } from 'motion/react'
 
 interface SimpleVariants {
   initial: TargetAndTransition
@@ -70,6 +70,29 @@ export function listItemVariants(reducedMotion: boolean): SimpleVariants {
     initial: { opacity: 0, scale: 0.95 },
     animate: { opacity: 1, scale: 1 },
     exit: { opacity: 0, scale: 0.95 },
+  }
+}
+
+/**
+ * Transition directionnelle (page précédente/suivante, mois précédent/
+ * suivant) dont le sens peut changer d'une navigation à l'autre.
+ *
+ * Utilise des variants-fonctions + le prop `custom` d'AnimatePresence
+ * plutôt que des valeurs figées : contrairement aux props d'un enfant
+ * "sortant" (gelées au moment où il a été créé), AnimatePresence relit
+ * `custom` au moment même où l'élément commence sa sortie. Sans ça, la
+ * sortie utilise la direction d'une navigation précédente (figée), et
+ * seule l'entrée glisse dans le bon sens — exactement le bug où le
+ * changement de mois du calendrier ne semblait pas glisser.
+ */
+export function directionalVariants(offset: number, reducedMotion: boolean): Variants {
+  if (reducedMotion) {
+    return { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+  }
+  return {
+    initial: (direction: number) => ({ opacity: 0, x: direction * offset }),
+    animate: { opacity: 1, x: 0 },
+    exit: (direction: number) => ({ opacity: 0, x: direction * -offset }),
   }
 }
 

@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, CheckCircle2, Clock, XCircle, Circle } from 
 import PageHeader from '../../components/PageHeader'
 import { useCalendarQuestions } from '../../hooks/useCalendar'
 import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
-import { springs, reducedMotionTransition, revealVariants } from '../../lib/motionTokens'
+import { springs, reducedMotionTransition, revealVariants, directionalVariants } from '../../lib/motionTokens'
 import type { ReviewStatus } from '../../types/database'
 
 const STATUS_META: Record<ReviewStatus, { label: string; dot: string; text: string; Icon: typeof Circle }> = {
@@ -38,12 +38,7 @@ export default function CalendarPage() {
     setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1))
   }
 
-  const monthOffset = reducedMotion ? 0 : 16
-  const monthVariants = {
-    initial: { opacity: 0, x: monthDirection * monthOffset },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: monthDirection * -monthOffset },
-  }
+  const monthVariants = directionalVariants(28, reducedMotion)
   const rVariants = revealVariants(reducedMotion)
 
   const byDate = useMemo(() => {
@@ -94,12 +89,14 @@ export default function CalendarPage() {
               <ChevronLeft size={18} />
             </m.button>
             <span className="text-sm font-medium text-slate-700 w-32 text-center capitalize overflow-hidden">
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence mode="wait" initial={false} custom={monthDirection}>
                 <m.span
                   key={`${cursor.getFullYear()}-${cursor.getMonth()}`}
-                  initial={monthVariants.initial}
-                  animate={monthVariants.animate}
-                  exit={monthVariants.exit}
+                  custom={monthDirection}
+                  variants={monthVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
                   transition={transition}
                   className="inline-block"
                 >
@@ -129,12 +126,14 @@ export default function CalendarPage() {
               </div>
             ))}
           </div>
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence mode="wait" initial={false} custom={monthDirection}>
             <m.div
               key={`${cursor.getFullYear()}-${cursor.getMonth()}`}
-              initial={monthVariants.initial}
-              animate={monthVariants.animate}
-              exit={monthVariants.exit}
+              custom={monthDirection}
+              variants={monthVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
               transition={transition}
             >
               {weeks.map((week, wi) => (
