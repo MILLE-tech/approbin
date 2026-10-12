@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { m, AnimatePresence } from 'motion/react'
 import { Send, CheckCircle2, Link2Off, RefreshCw, ShieldCheck, User } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import {
@@ -10,6 +11,8 @@ import {
 } from '../hooks/useTelegramLink'
 import { useIsAdmin } from '../hooks/useAdmin'
 import { useAdminMode } from '../contexts/AdminModeContext'
+import { useMotionPreferences } from '../contexts/MotionPreferencesContext'
+import { springs, reducedMotionTransition, revealVariants } from '../lib/motionTokens'
 
 const BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined
 
@@ -24,6 +27,9 @@ export default function SettingsPage() {
   const generateCode = useGenerateTelegramLinkCode()
   const setReminderEnabled = useSetReminderEnabled()
   const unlink = useUnlinkTelegram()
+  const { reducedMotion } = useMotionPreferences()
+  const transition = reducedMotion ? reducedMotionTransition : springs.default
+  const rVariants = revealVariants(reducedMotion)
 
   const isLinked = !!link?.chat_id
 
@@ -90,10 +96,27 @@ export default function SettingsPage() {
             Recevez un message chaque jour si des questions sont à réviser.
           </p>
 
+          <AnimatePresence mode="wait">
           {isLoading ? (
-            <p className="text-sm text-slate-400">Chargement…</p>
+            <m.p
+              key="loading"
+              initial={rVariants.initial}
+              animate={rVariants.animate}
+              exit={rVariants.exit}
+              transition={transition}
+              className="text-sm text-slate-400"
+            >
+              Chargement…
+            </m.p>
           ) : isLinked ? (
-            <div className="space-y-3">
+            <m.div
+              key="linked"
+              initial={rVariants.initial}
+              animate={rVariants.animate}
+              exit={rVariants.exit}
+              transition={transition}
+              className="space-y-3"
+            >
               <p className="flex items-center gap-1.5 text-sm text-success-600">
                 <CheckCircle2 size={16} /> Compte Telegram lié
               </p>
@@ -108,23 +131,32 @@ export default function SettingsPage() {
                 Recevoir le rappel quotidien
               </label>
 
-              <button
+              <m.button
+                whileTap={reducedMotion ? undefined : { scale: 0.96 }}
                 onClick={() => unlink.mutate()}
                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-danger-600"
               >
                 <Link2Off size={14} />
                 Délier ce compte Telegram
-              </button>
-            </div>
+              </m.button>
+            </m.div>
           ) : pendingCode ? (
-            <div className="space-y-3">
+            <m.div
+              key="pending"
+              initial={rVariants.initial}
+              animate={rVariants.animate}
+              exit={rVariants.exit}
+              transition={transition}
+              className="space-y-3"
+            >
               <p className="text-sm text-slate-600">
                 Ouvrez Telegram, puis appuyez sur <strong>Envoyer</strong> — le message{' '}
                 <code className="bg-slate-100 px-1 py-0.5 rounded">/start {pendingCode}</code> est déjà écrit, mais
                 Telegram ne l'envoie pas tout seul, il faut valider :
               </p>
               {deepLink ? (
-                <a
+                <m.a
+                  whileTap={reducedMotion ? undefined : { scale: 0.97 }}
                   href={deepLink}
                   target="_blank"
                   rel="noreferrer"
@@ -132,7 +164,7 @@ export default function SettingsPage() {
                 >
                   <Send size={16} />
                   Ouvrir Telegram
-                </a>
+                </m.a>
               ) : (
                 <p className="text-xs text-warning-600 bg-warning-50 rounded-lg p-2.5">
                   Le bouton "Ouvrir Telegram" n'est pas disponible (VITE_TELEGRAM_BOT_USERNAME non configuré). Envoyez
@@ -144,44 +176,61 @@ export default function SettingsPage() {
                 <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono">/start {pendingCode}</code>
               </p>
 
-              <button
+              <m.button
+                whileTap={reducedMotion || isFetching ? undefined : { scale: 0.97 }}
                 onClick={() => refetch()}
                 disabled={isFetching}
                 className="flex items-center justify-center gap-1.5 w-full rounded-lg border border-slate-200 text-slate-600 text-xs py-2 hover:bg-slate-50 disabled:opacity-60"
               >
                 <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
                 {isFetching ? 'Vérification…' : 'Vérifier maintenant'}
-              </button>
+              </m.button>
 
               <p className="text-xs text-slate-400">
                 Cette page se met aussi à jour automatiquement dès que la liaison est confirmée.
               </p>
 
-              {showHint && (
-                <div className="text-xs text-warning-700 bg-warning-50 rounded-lg p-2.5 space-y-1">
-                  <p className="font-medium">Toujours rien après 30 secondes ?</p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    <li>
-                      Vérifiez que vous avez bien appuyé sur <strong>Envoyer</strong> dans Telegram (pas seulement
-                      ouvert la conversation).
-                    </li>
-                    <li>
-                      Si le problème persiste, il peut s'agir d'un souci de configuration côté serveur — contactez la
-                      personne qui gère l'application.
-                    </li>
-                  </ul>
-                </div>
-              )}
-            </div>
+              <AnimatePresence>
+                {showHint && (
+                  <m.div
+                    initial={rVariants.initial}
+                    animate={rVariants.animate}
+                    exit={rVariants.exit}
+                    transition={transition}
+                    className="text-xs text-warning-700 bg-warning-50 rounded-lg p-2.5 space-y-1"
+                  >
+                    <p className="font-medium">Toujours rien après 30 secondes ?</p>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      <li>
+                        Vérifiez que vous avez bien appuyé sur <strong>Envoyer</strong> dans Telegram (pas seulement
+                        ouvert la conversation).
+                      </li>
+                      <li>
+                        Si le problème persiste, il peut s'agir d'un souci de configuration côté serveur — contactez
+                        la personne qui gère l'application.
+                      </li>
+                    </ul>
+                  </m.div>
+                )}
+              </AnimatePresence>
+            </m.div>
           ) : (
-            <div className="space-y-2">
-              <button
+            <m.div
+              key="generate"
+              initial={rVariants.initial}
+              animate={rVariants.animate}
+              exit={rVariants.exit}
+              transition={transition}
+              className="space-y-2"
+            >
+              <m.button
+                whileTap={reducedMotion || generateCode.isPending ? undefined : { scale: 0.97 }}
                 onClick={handleGenerate}
                 disabled={generateCode.isPending}
                 className="rounded-lg bg-brand-600 text-white font-medium px-4 py-2 text-sm hover:bg-brand-700 disabled:opacity-60"
               >
                 {generateCode.isPending ? 'Patientez…' : 'Lier Telegram'}
-              </button>
+              </m.button>
               {generateError && (
                 <p className="text-xs text-danger-600 bg-danger-50 rounded-lg p-2.5">
                   Échec : {generateError}
@@ -190,8 +239,9 @@ export default function SettingsPage() {
                   a bien été exécutée dans Supabase.
                 </p>
               )}
-            </div>
+            </m.div>
           )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

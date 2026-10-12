@@ -1,13 +1,16 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { m } from 'motion/react'
 import { ShieldCheck, User } from 'lucide-react'
 import { useIsAdmin } from '../hooks/useAdmin'
 import { useAdminMode, type RoleMode } from '../contexts/AdminModeContext'
+import { useMotionPreferences } from '../contexts/MotionPreferencesContext'
 
 export default function RoleChoice() {
   const navigate = useNavigate()
   const { data: isAdmin, isLoading } = useIsAdmin()
   const { setMode } = useAdminMode()
+  const { reducedMotion } = useMotionPreferences()
 
   // Ce compte n'est pas admin : rien à choisir, on continue normalement.
   useEffect(() => {
@@ -36,7 +39,8 @@ export default function RoleChoice() {
         <p className="text-sm text-slate-500 mb-6">Ce compte a accès au panneau admin.</p>
 
         <div className="space-y-3">
-          <button
+          <m.button
+            whileTap={reducedMotion ? undefined : { scale: 0.97 }}
             onClick={() => choose('user')}
             className="w-full flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left hover:border-brand-300 hover:shadow-sm transition"
           >
@@ -45,9 +49,10 @@ export default function RoleChoice() {
               <p className="font-medium text-slate-800 text-sm">Utilisateur normal</p>
               <p className="text-xs text-slate-400">Utiliser Approbin comme un compte classique.</p>
             </div>
-          </button>
+          </m.button>
 
-          <button
+          <m.button
+            whileTap={reducedMotion ? undefined : { scale: 0.97 }}
             onClick={() => choose('admin')}
             className="w-full flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left hover:border-brand-300 hover:shadow-sm transition"
           >
@@ -56,7 +61,7 @@ export default function RoleChoice() {
               <p className="font-medium text-slate-800 text-sm">Administrateur</p>
               <p className="text-xs text-slate-400">Accéder directement au panneau admin.</p>
             </div>
-          </button>
+          </m.button>
         </div>
 
         <p className="text-xs text-slate-400 mt-5">Vous pourrez changer de mode à tout moment depuis Paramètres.</p>
