@@ -2,13 +2,12 @@ import { Plus, Trash2 } from 'lucide-react'
 import type { TableData } from '../types/database'
 
 export function emptyTableData(): TableData {
-  return { title: '', headers: ['Entête 1'], rows: [['']] }
+  return { headers: ['Entête 1'], rows: [['']] }
 }
 
-/** Même structure (titre + entêtes) qu'une TableData existante, mais toutes les cellules vides. */
+/** Mêmes entêtes qu'une TableData existante, mais toutes les cellules vides. */
 export function blankCopyOf(data: TableData): TableData {
   return {
-    title: data.title,
     headers: [...data.headers],
     rows: data.rows.map((row) => row.map(() => '')),
   }
@@ -70,20 +69,6 @@ export default function GenericTable({ data, onChange, readOnly = false, lockStr
 
   return (
     <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-      <div className="border-b border-slate-200 px-3 py-2">
-        {editableStructure ? (
-          <input
-            type="text"
-            placeholder="Titre du tableau"
-            value={data.title}
-            onChange={(e) => onChange!({ ...data, title: e.target.value })}
-            className="text-sm font-medium px-2 py-1 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 w-full"
-          />
-        ) : (
-          data.title && <span className="text-sm font-medium text-slate-700">{data.title}</span>
-        )}
-      </div>
-
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-slate-50 text-[11px] text-slate-500 uppercase">

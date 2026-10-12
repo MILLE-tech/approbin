@@ -64,7 +64,6 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
   }
 
   function writeGenericTable(data: TableData) {
-    if (data.title) writeLines(data.title, { size: 9, font: 'courier', style: 'bold', gap: 12 })
     const colWidth = 16
     writeLines(data.headers.map((h) => h.padEnd(colWidth)).join(''), { size: 9, font: 'courier', style: 'bold', gap: 12 })
     for (const row of data.rows) {
@@ -172,10 +171,7 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
           ),
         }),
     )
-    const nodes = []
-    if (data.title) nodes.push(new Paragraph({ children: [new TextRun({ text: data.title, bold: true })] }))
-    nodes.push(new Table({ rows: [headerRow, ...rows], width: { size: 100, type: WidthType.PERCENTAGE } }))
-    return nodes
+    return [new Table({ rows: [headerRow, ...rows], width: { size: 100, type: WidthType.PERCENTAGE } })]
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

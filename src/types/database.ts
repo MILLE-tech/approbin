@@ -17,7 +17,6 @@ export interface AccountingData {
 }
 
 export interface TableData {
-  title: string
   headers: string[]
   rows: string[][]
 }

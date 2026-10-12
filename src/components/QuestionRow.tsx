@@ -71,7 +71,7 @@ export default function QuestionRow({
     ) : q.question_type === 'table' ? (
       <p className="flex items-center gap-1 text-[11px] font-medium text-brand-600 mb-1">
         <Table2 size={12} />
-        Tableau {q.table_data?.title && `· ${q.table_data.title}`}
+        Tableau
       </p>
     ) : null
 

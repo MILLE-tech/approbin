@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2, RotateCcw, ThumbsDown, ThumbsUp, Trophy } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
-import GenericTable, { emptyTableData } from '../../components/GenericTable'
+import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
 import { useExamQuestionPool, type ExamQuestion } from '../../hooks/useExam'
 import type { AccountingData, TableData } from '../../types/database'
 
@@ -41,6 +41,17 @@ export default function ExamSession() {
       setDraws(drawQuestions(pool, examLength))
     }
   }, [pool, draws, examLength])
+
+  const current = draws?.[index] ?? null
+
+  // Les entêtes du tableau doivent être visibles dès que la question est
+  // posée, pas seulement après avoir vu la réponse.
+  useEffect(() => {
+    if (current && current.question_type === 'table' && !current.reversed && current.table_data) {
+      setTableAnswer(blankCopyOf(current.table_data))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.question_id, current?.reversed])
 
   function restart() {
     if (!pool || pool.length === 0) return
@@ -112,7 +123,7 @@ export default function ExamSession() {
     )
   }
 
-  const current = draws[index]
+  if (!current) return null
   const isAccounting = current.question_type === 'accounting' && !current.reversed
   const isTable = current.question_type === 'table' && !current.reversed
   const prompt = current.reversed ? current.answer : current.question
@@ -153,16 +164,7 @@ export default function ExamSession() {
 
         {!revealed ? (
           <button
-            onClick={() => {
-              if (isTable && current.table_data) {
-                setTableAnswer({
-                  title: current.table_data.title,
-                  headers: current.table_data.headers,
-                  rows: current.table_data.rows.map((r) => r.map(() => '')),
-                })
-              }
-              setRevealed(true)
-            }}
+            onClick={() => setRevealed(true)}
             className="w-full rounded-lg bg-brand-600 text-white font-medium py-2.5 text-sm hover:bg-brand-700"
           >
             Voir la réponse

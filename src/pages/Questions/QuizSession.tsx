@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2, Clock, XCircle, Pencil, Power, Repeat, Check, X, Calculator, Table2, Type } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
-import GenericTable, { emptyTableData } from '../../components/GenericTable'
+import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
 import { useQuizQueue, useSubmitQuizAnswer, type DueRow } from '../../hooks/useQuiz'
 import { useToggleQuestionActive, useToggleQuestionReverse, useUpdateQuestion } from '../../hooks/useQuestions'
 import type { AccountingData, QuestionType, QuizResult, TableData } from '../../types/database'
@@ -46,6 +46,16 @@ export default function QuizSession() {
   }, [initialQueue, queue])
 
   const current = queue?.[0] ?? null
+
+  // Les entêtes du tableau doivent être visibles dès que la question est
+  // posée (pas seulement après validation) : on prépare un tableau vide
+  // avec les bonnes colonnes dès qu'une nouvelle question tableau arrive.
+  useEffect(() => {
+    if (current?.question_type === 'table' && !current._reversed && current.table_data) {
+      setTableAnswer(blankCopyOf(current.table_data))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.question_id, current?._reversed])
 
   function resetAnswerState() {
     setUserAnswer('')
@@ -266,10 +276,7 @@ export default function QuizSession() {
 
             {!revealed ? (
               <button
-                onClick={() => {
-                  if (isTable && current.table_data) setTableAnswer((t) => ({ ...t, headers: current.table_data!.headers, rows: current.table_data!.rows.map((r) => r.map(() => '')) }))
-                  setRevealed(true)
-                }}
+                onClick={() => setRevealed(true)}
                 className="w-full rounded-lg bg-brand-600 text-white font-medium py-2.5 text-sm hover:bg-brand-700"
               >
                 Valider ma réponse

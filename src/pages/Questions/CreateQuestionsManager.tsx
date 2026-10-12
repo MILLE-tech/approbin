@@ -37,7 +37,7 @@ export default function CreateQuestionsManager() {
     if (!newQuestion.trim()) return
     if (newType === 'text' && !newAnswer.trim()) return
     if (newType === 'accounting' && !newAccounting.date.trim()) return
-    if (newType === 'table' && !newTable.title.trim()) return
+    if (newType === 'table' && newTable.headers.every((h) => !h.trim())) return
 
     await createQuestion.mutateAsync({
       question: newQuestion.trim(),
