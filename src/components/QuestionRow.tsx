@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import { m } from 'motion/react'
 import { Pencil, Trash2, Check, X, Repeat, Power, Calculator, Table2, Type } from 'lucide-react'
 import AccountingTable, { emptyAccountingData } from './AccountingTable'
 import GenericTable, { emptyTableData } from './GenericTable'
 import { useConfirm } from '../contexts/ConfirmContext'
+import { useMotionPreferences } from '../contexts/MotionPreferencesContext'
+import { springs, reducedMotionTransition, listItemVariants } from '../lib/motionTokens'
 import type { AccountingData, Question, QuestionType, TableData } from '../types/database'
 
 export interface QuestionRowProps {
@@ -33,6 +36,9 @@ export default function QuestionRow({
   onDelete,
 }: QuestionRowProps) {
   const confirm = useConfirm()
+  const { reducedMotion } = useMotionPreferences()
+  const transition = reducedMotion ? reducedMotionTransition : springs.snappy
+  const iVariants = listItemVariants(reducedMotion)
   const [editing, setEditing] = useState(false)
   const [editType, setEditType] = useState<QuestionType>('text')
   const [editQuestion, setEditQuestion] = useState('')
@@ -78,13 +84,20 @@ export default function QuestionRow({
     ) : null
 
   return (
-    <div className={`border rounded-xl p-4 ${q.active ? 'bg-white border-slate-200' : 'bg-warning-50 border-warning-200'}`}>
+    <m.div
+      initial={iVariants.initial}
+      animate={iVariants.animate}
+      exit={iVariants.exit}
+      transition={transition}
+      className={`border rounded-xl p-4 ${q.active ? 'bg-white border-slate-200' : 'bg-warning-50 border-warning-200'}`}
+    >
       {editing ? (
         <div className="space-y-2">
           <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs w-fit">
             {(['text', 'accounting', 'table'] as QuestionType[]).map((t) => (
-              <button
+              <m.button
                 key={t}
+                whileTap={reducedMotion ? undefined : { scale: 0.96 }}
                 onClick={() => setEditType(t)}
                 className={`flex items-center gap-1 px-2.5 py-1.5 ${
                   editType === t ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-50'
@@ -94,7 +107,7 @@ export default function QuestionRow({
                 {t === 'accounting' && <Calculator size={13} />}
                 {t === 'table' && <Table2 size={13} />}
                 {t === 'text' ? 'Texte' : t === 'accounting' ? 'Comptabilité' : 'Tableau'}
-              </button>
+              </m.button>
             ))}
           </div>
 
@@ -116,12 +129,16 @@ export default function QuestionRow({
           {editType === 'table' && <GenericTable data={editTable} onChange={setEditTable} />}
 
           <div className="flex gap-2">
-            <button onClick={commitEdit} className="text-success-600">
+            <m.button whileTap={reducedMotion ? undefined : { scale: 0.9 }} onClick={commitEdit} className="text-success-600">
               <Check size={18} />
-            </button>
-            <button onClick={() => setEditing(false)} className="text-slate-400">
+            </m.button>
+            <m.button
+              whileTap={reducedMotion ? undefined : { scale: 0.9 }}
+              onClick={() => setEditing(false)}
+              className="text-slate-400"
+            >
               <X size={18} />
-            </button>
+            </m.button>
           </div>
         </div>
       ) : (
@@ -144,35 +161,43 @@ export default function QuestionRow({
             {q.question_type === 'text' && <p className="text-sm text-slate-500 mt-1">{q.answer}</p>}
           </div>
           <div className="flex gap-1 shrink-0">
-            <button onClick={startEdit} className="p-1.5 text-slate-400 hover:text-brand-600" title="Modifier">
+            <m.button
+              whileTap={reducedMotion ? undefined : { scale: 0.88 }}
+              onClick={startEdit}
+              className="p-1.5 text-slate-400 hover:text-brand-600"
+              title="Modifier"
+            >
               <Pencil size={15} />
-            </button>
+            </m.button>
             {q.question_type === 'text' && (
-              <button
+              <m.button
+                whileTap={reducedMotion ? undefined : { scale: 0.88 }}
                 onClick={() => onToggleReverse(!q.can_reverse)}
                 className={`p-1.5 ${q.can_reverse ? 'text-brand-600' : 'text-slate-400 hover:text-brand-600'}`}
                 title="Inverser question/réponse 1 fois sur 4"
               >
                 <Repeat size={15} />
-              </button>
+              </m.button>
             )}
-            <button
+            <m.button
+              whileTap={reducedMotion ? undefined : { scale: 0.88 }}
               onClick={() => onToggleActive(!q.active)}
               className={`p-1.5 ${q.active ? 'text-slate-400 hover:text-warning-600' : 'text-warning-600'}`}
               title={q.active ? 'Désactiver' : 'Activer'}
             >
               <Power size={15} />
-            </button>
-            <button
+            </m.button>
+            <m.button
+              whileTap={reducedMotion ? undefined : { scale: 0.88 }}
               onClick={async () => (await confirm('Supprimer cette question ?')) && onDelete()}
               className="p-1.5 text-slate-400 hover:text-danger-600"
               title="Supprimer"
             >
               <Trash2 size={15} />
-            </button>
+            </m.button>
           </div>
         </div>
       )}
-    </div>
+    </m.div>
   )
 }

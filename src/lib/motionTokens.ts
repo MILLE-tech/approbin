@@ -61,6 +61,18 @@ export function revealVariants(reducedMotion: boolean): SimpleVariants {
   }
 }
 
+/** Apparition/disparition d'un élément de liste (carte de dossier, ligne de question). */
+export function listItemVariants(reducedMotion: boolean): SimpleVariants {
+  if (reducedMotion) {
+    return { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+  }
+  return {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 },
+  }
+}
+
 /** Écran de fin (session terminée / examen fini) : une seule apparition, satisfaisante. */
 export function completionVariants(reducedMotion: boolean): SimpleVariants {
   if (reducedMotion) {

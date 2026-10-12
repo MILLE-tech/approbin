@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { AnimatePresence } from 'motion/react'
 import { Plus, Repeat, Calculator, Table2, Type } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
@@ -132,16 +133,18 @@ export default function CreateQuestionsManager() {
         )}
 
         <div className="space-y-3">
-          {questions?.map((q) => (
-            <QuestionRow
-              key={q.id}
-              question={q}
-              onUpdate={(input) => updateQuestion.mutateAsync(input)}
-              onToggleActive={(active) => toggleActive.mutate({ id: q.id, active })}
-              onToggleReverse={(canReverse) => toggleReverse.mutate({ id: q.id, canReverse })}
-              onDelete={() => deleteQuestion.mutate(q.id)}
-            />
-          ))}
+          <AnimatePresence>
+            {questions?.map((q) => (
+              <QuestionRow
+                key={q.id}
+                question={q}
+                onUpdate={(input) => updateQuestion.mutateAsync(input)}
+                onToggleActive={(active) => toggleActive.mutate({ id: q.id, active })}
+                onToggleReverse={(canReverse) => toggleReverse.mutate({ id: q.id, canReverse })}
+                onDelete={() => deleteQuestion.mutate(q.id)}
+              />
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     </div>
