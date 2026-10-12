@@ -1,5 +1,5 @@
 import type { ExportChapterContent } from '../hooks/useExport'
-import { accountingTotals, formatTotal } from '../components/AccountingTable'
+import { accountingTotals, formatAmount, formatTotal } from '../components/AccountingTable'
 import type { AccountingData, TableData } from '../types/database'
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -56,7 +56,13 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
       .join('')
     writeLines(header, { size: 9, font: 'courier', style: 'bold', gap: 12 })
     for (const row of data.rows) {
-      const line = [row.compteDebit, row.compteCredit, row.libelle, row.montantDebit, row.montantCredit]
+      const line = [
+        row.compteDebit,
+        row.compteCredit,
+        row.libelle,
+        formatAmount(row.montantDebit),
+        formatAmount(row.montantCredit),
+      ]
         .map((v) => (v || '').toString().padEnd(14))
         .join('')
       writeLines(line, { size: 9, font: 'courier', gap: 12 })
@@ -143,9 +149,13 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
     const rows = data.rows.map(
       (row) =>
         new TableRow({
-          children: [row.compteDebit, row.compteCredit, row.libelle, row.montantDebit, row.montantCredit].map(
-            (text) => new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, children: [new Paragraph(text || '')] }),
-          ),
+          children: [
+            row.compteDebit,
+            row.compteCredit,
+            row.libelle,
+            formatAmount(row.montantDebit),
+            formatAmount(row.montantCredit),
+          ].map((text) => new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, children: [new Paragraph(text || '')] })),
         }),
     )
     const { totalDebit, totalCredit } = accountingTotals(data)

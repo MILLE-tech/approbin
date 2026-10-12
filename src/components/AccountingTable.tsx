@@ -18,6 +18,12 @@ export function formatTotal(n: number): string {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+/** Affichage d'un montant de ligne (espace entre milliers/millions), vide si non renseigné. */
+export function formatAmount(value: string): string {
+  if (!value.trim()) return ''
+  return formatTotal(parseAmount(value))
+}
+
 export function accountingTotals(data: AccountingData) {
   return {
     totalDebit: data.rows.reduce((sum, row) => sum + parseAmount(row.montantDebit), 0),
@@ -117,7 +123,7 @@ export default function AccountingTable({ data, onChange, readOnly = false }: Ac
                     className={numberCellClass}
                   />
                 ) : (
-                  <span className="block px-2 py-1.5 text-right font-mono">{row.montantDebit}</span>
+                  <span className="block px-2 py-1.5 text-right font-mono">{formatAmount(row.montantDebit)}</span>
                 )}
               </td>
               <td>
@@ -129,7 +135,7 @@ export default function AccountingTable({ data, onChange, readOnly = false }: Ac
                     className={numberCellClass}
                   />
                 ) : (
-                  <span className="block px-2 py-1.5 text-right font-mono">{row.montantCredit}</span>
+                  <span className="block px-2 py-1.5 text-right font-mono">{formatAmount(row.montantCredit)}</span>
                 )}
               </td>
               {editable && (
