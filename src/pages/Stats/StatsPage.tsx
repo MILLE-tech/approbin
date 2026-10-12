@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import { m } from 'motion/react'
 import PageHeader from '../../components/PageHeader'
 import StackedBar, { StatusLegend } from '../../components/StackedBar'
 import { useStats } from '../../hooks/useStats'
+import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
+import { springs, reducedMotionTransition } from '../../lib/motionTokens'
 
 const CHART_HEIGHT = 120
 
@@ -12,6 +15,8 @@ function pct(n: number, total: number) {
 export default function StatsPage() {
   const [windowDays, setWindowDays] = useState(30)
   const { data: stats, isLoading } = useStats(windowDays)
+  const { reducedMotion } = useMotionPreferences()
+  const transition = reducedMotion ? reducedMotionTransition : springs.default
 
   if (isLoading || !stats) {
     return (
@@ -63,7 +68,7 @@ export default function StatsPage() {
             </select>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-4">
-            <div className="flex items-end gap-[3px]" style={{ height: CHART_HEIGHT }}>
+            <div className="flex items-end gap-[3px]" style={{ height: CHART_HEIGHT }} key={windowDays}>
               {byDay.map((day) => {
                 const scale = day.total === 0 ? 0 : (day.total / maxDayTotal) * CHART_HEIGHT
                 const rH = day.total === 0 ? 0 : (day.reussi / day.total) * scale
@@ -75,9 +80,33 @@ export default function StatsPage() {
                     className="flex-1 flex flex-col-reverse gap-[2px] min-w-[2px]"
                     title={`${day.date} — Validé: ${day.reussi}, Apprentissage: ${day.apprentissage}, Échoué: ${day.echec}`}
                   >
-                    {rH > 0 && <div className="bg-success-500 rounded-t-[2px]" style={{ height: rH }} />}
-                    {aH > 0 && <div className="bg-warning-500" style={{ height: aH }} />}
-                    {eH > 0 && <div className="bg-danger-500" style={{ height: eH }} />}
+                    {rH > 0 && (
+                      <m.div
+                        className="bg-success-500 rounded-t-[2px]"
+                        style={{ height: rH, transformOrigin: 'bottom' }}
+                        initial={{ scaleY: 0 }}
+                        animate={{ scaleY: 1 }}
+                        transition={transition}
+                      />
+                    )}
+                    {aH > 0 && (
+                      <m.div
+                        className="bg-warning-500"
+                        style={{ height: aH, transformOrigin: 'bottom' }}
+                        initial={{ scaleY: 0 }}
+                        animate={{ scaleY: 1 }}
+                        transition={transition}
+                      />
+                    )}
+                    {eH > 0 && (
+                      <m.div
+                        className="bg-danger-500"
+                        style={{ height: eH, transformOrigin: 'bottom' }}
+                        initial={{ scaleY: 0 }}
+                        animate={{ scaleY: 1 }}
+                        transition={transition}
+                      />
+                    )}
                   </div>
                 )
               })}

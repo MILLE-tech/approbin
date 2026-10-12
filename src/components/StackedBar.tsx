@@ -1,4 +1,7 @@
+import { m } from 'motion/react'
 import { CheckCircle2, Clock, XCircle } from 'lucide-react'
+import { useMotionPreferences } from '../contexts/MotionPreferencesContext'
+import { springs, reducedMotionTransition } from '../lib/motionTokens'
 
 interface StackedBarProps {
   reussi: number
@@ -23,30 +26,45 @@ export default function StackedBar({
   heightClass = 'h-2.5',
   showCounts = true,
 }: StackedBarProps) {
+  const { reducedMotion } = useMotionPreferences()
+  const transition = reducedMotion ? reducedMotionTransition : springs.default
+
   return (
     <div>
       {total === 0 ? (
         <div className={`w-full ${heightClass} rounded-full bg-slate-100`} />
       ) : (
-        <div className={`w-full ${heightClass} rounded-full bg-slate-100 flex overflow-hidden gap-[2px]`}>
+        <div
+          key={`${reussi}-${apprentissage}-${echec}-${total}`}
+          className={`w-full ${heightClass} rounded-full bg-slate-100 flex overflow-hidden gap-[2px]`}
+        >
           {reussi > 0 && (
-            <div
+            <m.div
               className={SEGMENT_CLASSES.reussi}
-              style={{ width: `${(reussi / total) * 100}%` }}
+              style={{ width: `${(reussi / total) * 100}%`, transformOrigin: 'left' }}
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={transition}
               title={`Validé : ${reussi}`}
             />
           )}
           {apprentissage > 0 && (
-            <div
+            <m.div
               className={SEGMENT_CLASSES.apprentissage}
-              style={{ width: `${(apprentissage / total) * 100}%` }}
+              style={{ width: `${(apprentissage / total) * 100}%`, transformOrigin: 'left' }}
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={transition}
               title={`En apprentissage : ${apprentissage}`}
             />
           )}
           {echec > 0 && (
-            <div
+            <m.div
               className={SEGMENT_CLASSES.echec}
-              style={{ width: `${(echec / total) * 100}%` }}
+              style={{ width: `${(echec / total) * 100}%`, transformOrigin: 'left' }}
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={transition}
               title={`Échoué : ${echec}`}
             />
           )}
