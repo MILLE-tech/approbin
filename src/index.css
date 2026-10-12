@@ -86,12 +86,14 @@ h3 {
    gèrent leur propre feedback et n'ont pas besoin de ce fallback CSS. ===== */
 @media (prefers-reduced-motion: no-preference) {
   button:not(:disabled):active,
-  [role='button']:not([aria-disabled='true']):active {
+  [role='button']:not([aria-disabled='true']):active,
+  nav a:active {
     transform: scale(0.97);
   }
 
   button:not(:disabled),
-  [role='button']:not([aria-disabled='true']) {
+  [role='button']:not([aria-disabled='true']),
+  nav a {
     transition: transform 100ms ease-out;
   }
 }
