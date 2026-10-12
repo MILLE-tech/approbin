@@ -1,4 +1,5 @@
 import type { ExportChapterContent } from '../hooks/useExport'
+import { accountingTotals, formatTotal } from '../components/AccountingTable'
 import type { AccountingData, TableData } from '../types/database'
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -50,7 +51,6 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
   function writeAccountingTable(data: AccountingData) {
     doc.setFont('courier', 'normal')
     doc.setFontSize(9)
-    writeLines(`Date : ${data.date || '—'}`, { size: 9, font: 'courier', gap: 12 })
     const header = ['Débit', 'Crédit', 'Libellé', 'Mt débit', 'Mt crédit']
       .map((h) => h.padEnd(14))
       .join('')
@@ -61,6 +61,11 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
         .join('')
       writeLines(line, { size: 9, font: 'courier', gap: 12 })
     }
+    const { totalDebit, totalCredit } = accountingTotals(data)
+    const totalLine = ['', '', 'Total', formatTotal(totalDebit), formatTotal(totalCredit)]
+      .map((v) => v.padEnd(14))
+      .join('')
+    writeLines(totalLine, { size: 9, font: 'courier', style: 'bold', gap: 12 })
   }
 
   function writeGenericTable(data: TableData) {
@@ -143,10 +148,17 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
           ),
         }),
     )
-    return [
-      new Paragraph(`Date : ${data.date || '—'}`),
-      new Table({ rows: [headerRow, ...rows], width: { size: 100, type: WidthType.PERCENTAGE } }),
-    ]
+    const { totalDebit, totalCredit } = accountingTotals(data)
+    const totalRow = new TableRow({
+      children: ['', '', 'Total', formatTotal(totalDebit), formatTotal(totalCredit)].map(
+        (text) =>
+          new TableCell({
+            width: { size: 20, type: WidthType.PERCENTAGE },
+            children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })],
+          }),
+      ),
+    })
+    return [new Table({ rows: [headerRow, ...rows, totalRow], width: { size: 100, type: WidthType.PERCENTAGE } })]
   }
 
   function genericTableToDocx(data: TableData) {

@@ -6,7 +6,23 @@ export function emptyAccountingRow(): AccountingRow {
 }
 
 export function emptyAccountingData(): AccountingData {
-  return { date: '', rows: [emptyAccountingRow()] }
+  return { rows: [emptyAccountingRow()] }
+}
+
+export function parseAmount(value: string): number {
+  const n = parseFloat(value.replace(',', '.'))
+  return Number.isFinite(n) ? n : 0
+}
+
+export function formatTotal(n: number): string {
+  return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+export function accountingTotals(data: AccountingData) {
+  return {
+    totalDebit: data.rows.reduce((sum, row) => sum + parseAmount(row.montantDebit), 0),
+    totalCredit: data.rows.reduce((sum, row) => sum + parseAmount(row.montantCredit), 0),
+  }
 }
 
 interface AccountingTableProps {
@@ -37,23 +53,10 @@ export default function AccountingTable({ data, onChange, readOnly = false }: Ac
     onChange({ ...data, rows: data.rows.filter((_, i) => i !== index) })
   }
 
+  const { totalDebit, totalCredit } = accountingTotals(data)
+
   return (
     <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-      <div className="border-b border-slate-200 px-3 py-2 flex items-center gap-2">
-        <span className="text-xs font-medium text-slate-500">Date</span>
-        {editable ? (
-          <input
-            type="text"
-            placeholder="xx/xx/xxxx"
-            value={data.date}
-            onChange={(e) => onChange!({ ...data, date: e.target.value })}
-            className="text-sm px-2 py-1 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
-          />
-        ) : (
-          <span className="text-sm text-slate-700">{data.date || '—'}</span>
-        )}
-      </div>
-
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-slate-50 text-[11px] text-slate-500 uppercase">
@@ -144,6 +147,20 @@ export default function AccountingTable({ data, onChange, readOnly = false }: Ac
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
+            <td className="border-r border-slate-100" colSpan={3}>
+              <span className="block px-2 py-1.5 text-xs uppercase text-slate-500">Total</span>
+            </td>
+            <td className="border-r border-slate-100">
+              <span className="block px-2 py-1.5 text-right font-mono">{formatTotal(totalDebit)}</span>
+            </td>
+            <td>
+              <span className="block px-2 py-1.5 text-right font-mono">{formatTotal(totalCredit)}</span>
+            </td>
+            {editable && <td />}
+          </tr>
+        </tfoot>
       </table>
 
       {editable && (

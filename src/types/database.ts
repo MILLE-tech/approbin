@@ -12,7 +12,6 @@ export interface AccountingRow {
 }
 
 export interface AccountingData {
-  date: string
   rows: AccountingRow[]
 }
 

@@ -66,7 +66,7 @@ export default function QuestionRow({
     q.question_type === 'accounting' ? (
       <p className="flex items-center gap-1 text-[11px] font-medium text-brand-600 mb-1">
         <Calculator size={12} />
-        Écriture comptable {q.accounting_data?.date && `· ${q.accounting_data.date}`}
+        Écriture comptable
       </p>
     ) : q.question_type === 'table' ? (
       <p className="flex items-center gap-1 text-[11px] font-medium text-brand-600 mb-1">
