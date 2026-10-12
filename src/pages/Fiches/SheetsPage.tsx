@@ -4,10 +4,12 @@ import { FileText, FilePlus, Upload, Trash2, Paperclip } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import { useChapter } from '../../hooks/useChapters'
 import { useCreateManualSheet, useDeleteSheet, useImportSheet, useSheets } from '../../hooks/useSheets'
+import { useConfirm } from '../../contexts/ConfirmContext'
 
 export default function SheetsPage() {
   const { subjectId, chapterId } = useParams<{ subjectId: string; chapterId: string }>()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const { data: chapter } = useChapter(chapterId)
   const { data: sheets, isLoading } = useSheets(chapterId)
   const createManual = useCreateManualSheet(chapterId)
@@ -82,9 +84,9 @@ export default function SheetsPage() {
                 {new Date(sheet.created_at).toLocaleDateString('fr-FR')}
               </p>
               <button
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation()
-                  if (confirm(`Supprimer la fiche "${sheet.title}" ?`)) deleteSheet.mutate(sheet)
+                  if (await confirm(`Supprimer la fiche "${sheet.title}" ?`)) deleteSheet.mutate(sheet)
                 }}
                 className="absolute top-2.5 right-2.5 p-1.5 rounded-md text-slate-400 hover:text-danger-600 hover:bg-slate-50"
                 aria-label="Supprimer"

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pencil, Trash2, Check, X, Repeat, Power, Calculator, Table2, Type } from 'lucide-react'
 import AccountingTable, { emptyAccountingData } from './AccountingTable'
 import GenericTable, { emptyTableData } from './GenericTable'
+import { useConfirm } from '../contexts/ConfirmContext'
 import type { AccountingData, Question, QuestionType, TableData } from '../types/database'
 
 export interface QuestionRowProps {
@@ -31,6 +32,7 @@ export default function QuestionRow({
   onToggleReverse,
   onDelete,
 }: QuestionRowProps) {
+  const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [editType, setEditType] = useState<QuestionType>('text')
   const [editQuestion, setEditQuestion] = useState('')
@@ -162,7 +164,7 @@ export default function QuestionRow({
               <Power size={15} />
             </button>
             <button
-              onClick={() => confirm('Supprimer cette question ?') && onDelete()}
+              onClick={async () => (await confirm('Supprimer cette question ?')) && onDelete()}
               className="p-1.5 text-slate-400 hover:text-danger-600"
               title="Supprimer"
             >

@@ -37,7 +37,7 @@ body,
 
 body {
   margin: 0;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f8fafc;
@@ -46,4 +46,52 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+/* ===== Typographie : tracking/leading adaptés à la taille (jamais une
+   valeur fixe pour tout). Grand texte = tracking négatif + leading serré ;
+   petit texte/labels = tracking légèrement positif pour la lisibilité. ===== */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+.text-3xl,
+.text-2xl {
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.text-xl,
+.text-lg {
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.text-xs,
+.text-\[11px\] {
+  letter-spacing: 0.01em;
+}
+
+.uppercase {
+  letter-spacing: 0.04em;
+}
+
+/* ===== Feedback au press : instantané (pointer-down), jamais seulement au
+   relâchement. Filet de sécurité global pour tout bouton non encore animé
+   via Motion (whileTap) ; les composants qui utilisent déjà <m.button>
+   gèrent leur propre feedback et n'ont pas besoin de ce fallback CSS. ===== */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active,
+  [role='button']:not([aria-disabled='true']):active {
+    transform: scale(0.97);
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    transition: transform 100ms ease-out;
+  }
 }

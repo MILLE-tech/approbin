@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Folder, Pencil, Plus, Trash2, Check, X } from 'lucide-react'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 export interface FolderItem {
   id: string
@@ -36,6 +37,7 @@ export default function FolderGrid<T extends FolderItem>({
   renderAction,
   cardClassName,
 }: FolderGridProps<T>) {
+  const confirm = useConfirm()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [creating, setCreating] = useState(false)
@@ -111,9 +113,9 @@ export default function FolderGrid<T extends FolderItem>({
                   <Pencil size={14} />
                 </button>
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation()
-                    if (confirm(`Supprimer "${item.name}" ainsi que tout son contenu ?`)) onDelete(item.id)
+                    if (await confirm(`Supprimer "${item.name}" ainsi que tout son contenu ?`)) onDelete(item.id)
                   }}
                   className="p-1.5 rounded-md text-slate-400 hover:text-danger-600 hover:bg-slate-50"
                   aria-label="Supprimer"

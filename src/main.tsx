@@ -6,6 +6,9 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import { AdminModeProvider } from './contexts/AdminModeContext.tsx'
+import { MotionPreferencesProvider } from './contexts/MotionPreferencesContext.tsx'
+import { ConfirmProvider } from './contexts/ConfirmContext.tsx'
+import MotionProvider from './components/MotionProvider.tsx'
 import { isSupabaseConfigured } from './lib/supabaseClient.ts'
 import ConfigMissing from './pages/ConfigMissing.tsx'
 
@@ -22,13 +25,19 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {isSupabaseConfigured ? (
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <AdminModeProvider>
-              <App />
-            </AdminModeProvider>
-          </AuthProvider>
-        </BrowserRouter>
+        <MotionProvider>
+          <MotionPreferencesProvider>
+            <BrowserRouter>
+              <AuthProvider>
+                <AdminModeProvider>
+                  <ConfirmProvider>
+                    <App />
+                  </ConfirmProvider>
+                </AdminModeProvider>
+              </AuthProvider>
+            </BrowserRouter>
+          </MotionPreferencesProvider>
+        </MotionProvider>
       </QueryClientProvider>
     ) : (
       <ConfigMissing />
