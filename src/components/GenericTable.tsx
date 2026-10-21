@@ -2,13 +2,19 @@ import { Plus, Trash2 } from 'lucide-react'
 import type { TableData } from '../types/database'
 
 export function emptyTableData(): TableData {
-  return { headers: ['Entête 1'], rows: [['']] }
+  return { headers: ['Entête 1'], rowLabels: [''], rows: [['']] }
 }
 
-/** Mêmes entêtes qu'une TableData existante, mais toutes les cellules vides. */
+/** Libellés de ligne avec repli pour les données existantes enregistrées avant l'ajout de ce champ. */
+export function rowLabelsOf(data: TableData): string[] {
+  return data.rowLabels ?? data.rows.map(() => '')
+}
+
+/** Mêmes entêtes et libellés de ligne qu'une TableData existante, mais toutes les cellules vides. */
 export function blankCopyOf(data: TableData): TableData {
   return {
     headers: [...data.headers],
+    rowLabels: [...rowLabelsOf(data)],
     rows: data.rows.map((row) => row.map(() => '')),
   }
 }
@@ -26,11 +32,18 @@ const cellClass = 'w-full text-sm px-2 py-1.5 focus:outline-none focus:bg-brand-
 export default function GenericTable({ data, onChange, readOnly = false, lockStructure = false }: GenericTableProps) {
   const editableCells = !readOnly && !!onChange
   const editableStructure = editableCells && !lockStructure
+  const rowLabels = rowLabelsOf(data)
 
   function updateCell(rowIndex: number, colIndex: number, value: string) {
     if (!onChange) return
     const rows = data.rows.map((row, r) => (r === rowIndex ? row.map((cell, c) => (c === colIndex ? value : cell)) : row))
     onChange({ ...data, rows })
+  }
+
+  function updateRowLabel(rowIndex: number, value: string) {
+    if (!onChange) return
+    const labels = rowLabels.map((label, i) => (i === rowIndex ? value : label))
+    onChange({ ...data, rowLabels: labels })
   }
 
   function updateHeader(colIndex: number, value: string) {
@@ -59,12 +72,16 @@ export default function GenericTable({ data, onChange, readOnly = false, lockStr
 
   function addRow() {
     if (!onChange) return
-    onChange({ ...data, rows: [...data.rows, data.headers.map(() => '')] })
+    onChange({ ...data, rowLabels: [...rowLabels, ''], rows: [...data.rows, data.headers.map(() => '')] })
   }
 
   function removeRow(rowIndex: number) {
     if (!onChange) return
-    onChange({ ...data, rows: data.rows.filter((_, i) => i !== rowIndex) })
+    onChange({
+      ...data,
+      rowLabels: rowLabels.filter((_, i) => i !== rowIndex),
+      rows: data.rows.filter((_, i) => i !== rowIndex),
+    })
   }
 
   return (
@@ -72,6 +89,7 @@ export default function GenericTable({ data, onChange, readOnly = false, lockStr
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-slate-50 text-[11px] text-slate-500 uppercase">
+            <th className="px-2 py-1.5 text-left font-medium border-r border-slate-100 w-px" />
             {data.headers.map((header, c) => (
               <th key={c} className="px-2 py-1.5 text-left font-medium border-r border-slate-100 last:border-r-0">
                 <div className="flex items-center gap-1">
@@ -98,6 +116,17 @@ export default function GenericTable({ data, onChange, readOnly = false, lockStr
         <tbody>
           {data.rows.map((row, r) => (
             <tr key={r} className="border-t border-slate-100">
+              <td className="border-r border-slate-100 bg-slate-50/60 whitespace-nowrap">
+                {editableStructure ? (
+                  <input
+                    value={rowLabels[r] ?? ''}
+                    onChange={(e) => updateRowLabel(r, e.target.value)}
+                    className={`${cellClass} font-medium`}
+                  />
+                ) : (
+                  <span className="block px-2 py-1.5 font-medium">{rowLabels[r]}</span>
+                )}
+              </td>
               {row.map((cell, c) => (
                 <td key={c} className="border-r border-slate-100 last:border-r-0">
                   {editableCells ? (

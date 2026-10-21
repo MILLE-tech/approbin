@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { AnimatePresence } from 'motion/react'
 import { Plus, Repeat, Calculator, Table2, Type } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
-import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
+import AccountingTable, { emptyAccountingData, finalizeAccountingData } from '../../components/AccountingTable'
 import GenericTable, { emptyTableData } from '../../components/GenericTable'
 import QuestionRow from '../../components/QuestionRow'
 import { useChapter } from '../../hooks/useChapters'
@@ -43,7 +43,7 @@ export default function CreateQuestionsManager() {
       question: newQuestion.trim(),
       answer: newType === 'text' ? newAnswer.trim() : '',
       questionType: newType,
-      accountingData: newType === 'accounting' ? newAccounting : null,
+      accountingData: newType === 'accounting' ? finalizeAccountingData(newAccounting) : null,
       tableData: newType === 'table' ? newTable : null,
       canReverse: newType === 'text' && newCanReverse,
     })

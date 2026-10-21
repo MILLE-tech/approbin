@@ -4,6 +4,8 @@ export type SheetSourceType = 'manual' | 'import'
 export type QuestionType = 'text' | 'accounting' | 'table'
 
 export interface AccountingRow {
+  /** 'libelle' = ligne de rupture nommant une écriture, montants = sous-total depuis la précédente. Absent = ligne normale. */
+  kind?: 'line' | 'libelle'
   compteDebit: string
   compteCredit: string
   libelle: string
@@ -17,6 +19,8 @@ export interface AccountingData {
 
 export interface TableData {
   headers: string[]
+  /** Libellés de ligne (colonne fixe à gauche, pré-remplie et non éditable en mode réponse). */
+  rowLabels: string[]
   rows: string[][]
 }
 

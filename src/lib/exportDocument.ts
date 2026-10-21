@@ -1,5 +1,6 @@
 import type { ExportChapterContent } from '../hooks/useExport'
-import { accountingTotals, formatAmount, formatTotal } from '../components/AccountingTable'
+import { formatAmount } from '../components/AccountingTable'
+import { rowLabelsOf } from '../components/GenericTable'
 import type { AccountingData, TableData } from '../types/database'
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -56,36 +57,37 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
       .join('')
     writeLines(header, { size: 9, font: 'courier', style: 'bold', gap: 12 })
     for (const row of data.rows) {
+      const isLibelle = row.kind === 'libelle'
       const line = [
-        row.compteDebit,
-        row.compteCredit,
+        isLibelle ? '' : row.compteDebit,
+        isLibelle ? '' : row.compteCredit,
         row.libelle,
         formatAmount(row.montantDebit),
         formatAmount(row.montantCredit),
       ]
         .map((v) => (v || '').toString().padEnd(14))
         .join('')
-      writeLines(line, { size: 9, font: 'courier', gap: 12 })
+      writeLines(line, { size: 9, font: 'courier', style: isLibelle ? 'bold' : 'normal', gap: 12 })
     }
-    const { totalDebit, totalCredit } = accountingTotals(data)
-    const totalLine = ['', '', 'Total', formatTotal(totalDebit), formatTotal(totalCredit)]
-      .map((v) => v.padEnd(14))
-      .join('')
-    writeLines(totalLine, { size: 9, font: 'courier', style: 'bold', gap: 12 })
   }
 
   function writeGenericTable(data: TableData) {
     const colWidth = 16
-    writeLines(data.headers.map((h) => h.padEnd(colWidth)).join(''), { size: 9, font: 'courier', style: 'bold', gap: 12 })
-    for (const row of data.rows) {
-      writeLines(row.map((cell) => (cell || '').padEnd(colWidth)).join(''), { size: 9, font: 'courier', gap: 12 })
-    }
+    const labels = rowLabelsOf(data)
+    writeLines(['', ...data.headers].map((h) => h.padEnd(colWidth)).join(''), { size: 9, font: 'courier', style: 'bold', gap: 12 })
+    data.rows.forEach((row, i) => {
+      writeLines([labels[i] ?? '', ...row].map((cell) => (cell || '').padEnd(colWidth)).join(''), { size: 9, font: 'courier', gap: 12 })
+    })
   }
 
   writeLines(fileName, { size: 18, style: 'bold', gap: 24 })
   writeLines(`Exporté le ${new Date().toLocaleDateString('fr-FR')}`, { size: 9, gap: 20 })
 
-  for (const chapter of chapters) {
+  chapters.forEach((chapter, chapterIndex) => {
+    if (chapterIndex > 0) {
+      doc.addPage()
+      y = margin
+    }
     y += 8
     writeLines(`${chapter.subjectName} — ${chapter.chapterName}`, { size: 14, style: 'bold', gap: 20 })
 
@@ -116,7 +118,7 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
         y += 6
       }
     }
-  }
+  })
 
   doc.save(`${fileName}.pdf`)
 }
@@ -146,48 +148,48 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
           }),
       ),
     })
-    const rows = data.rows.map(
-      (row) =>
-        new TableRow({
-          children: [
-            row.compteDebit,
-            row.compteCredit,
-            row.libelle,
-            formatAmount(row.montantDebit),
-            formatAmount(row.montantCredit),
-          ].map((text) => new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, children: [new Paragraph(text || '')] })),
-        }),
-    )
-    const { totalDebit, totalCredit } = accountingTotals(data)
-    const totalRow = new TableRow({
-      children: ['', '', 'Total', formatTotal(totalDebit), formatTotal(totalCredit)].map(
-        (text) =>
-          new TableCell({
-            width: { size: 20, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })],
-          }),
-      ),
+    const rows = data.rows.map((row) => {
+      const isLibelle = row.kind === 'libelle'
+      const cells = [
+        isLibelle ? '' : row.compteDebit,
+        isLibelle ? '' : row.compteCredit,
+        row.libelle,
+        formatAmount(row.montantDebit),
+        formatAmount(row.montantCredit),
+      ]
+      return new TableRow({
+        children: cells.map(
+          (text) =>
+            new TableCell({
+              width: { size: 20, type: WidthType.PERCENTAGE },
+              children: [isLibelle ? new Paragraph({ children: [new TextRun({ text, bold: true })] }) : new Paragraph(text || '')],
+            }),
+        ),
+      })
     })
-    return [new Table({ rows: [headerRow, ...rows, totalRow], width: { size: 100, type: WidthType.PERCENTAGE } })]
+    return [new Table({ rows: [headerRow, ...rows], width: { size: 100, type: WidthType.PERCENTAGE } })]
   }
 
   function genericTableToDocx(data: TableData) {
+    const labels = rowLabelsOf(data)
+    const colCount = data.headers.length + 1
+    const colSize = Math.floor(100 / colCount)
     const headerRow = new TableRow({
-      children: data.headers.map(
+      children: ['', ...data.headers].map(
         (text) =>
           new TableCell({
-            width: { size: Math.floor(100 / data.headers.length), type: WidthType.PERCENTAGE },
+            width: { size: colSize, type: WidthType.PERCENTAGE },
             children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })],
           }),
       ),
     })
     const rows = data.rows.map(
-      (row) =>
+      (row, i) =>
         new TableRow({
-          children: row.map(
+          children: [labels[i] ?? '', ...row].map(
             (cell) =>
               new TableCell({
-                width: { size: Math.floor(100 / data.headers.length), type: WidthType.PERCENTAGE },
+                width: { size: colSize, type: WidthType.PERCENTAGE },
                 children: [new Paragraph(cell || '')],
               }),
           ),
@@ -202,8 +204,14 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
     new Paragraph(`Exporté le ${new Date().toLocaleDateString('fr-FR')}`),
   ]
 
-  for (const chapter of chapters) {
-    children.push(new Paragraph({ text: `${chapter.subjectName} — ${chapter.chapterName}`, heading: HeadingLevel.HEADING_1 }))
+  chapters.forEach((chapter, chapterIndex) => {
+    children.push(
+      new Paragraph({
+        text: `${chapter.subjectName} — ${chapter.chapterName}`,
+        heading: HeadingLevel.HEADING_1,
+        pageBreakBefore: chapterIndex > 0,
+      }),
+    )
 
     if (chapter.sheets.length > 0) {
       children.push(new Paragraph({ text: 'Fiches', heading: HeadingLevel.HEADING_2 }))
@@ -234,7 +242,7 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
         }
       }
     }
-  }
+  })
 
   const doc = new Document({ sections: [{ children }] })
   const blob = await Packer.toBlob(doc)

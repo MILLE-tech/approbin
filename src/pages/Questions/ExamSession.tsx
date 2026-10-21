@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { m, AnimatePresence } from 'motion/react'
 import { CheckCircle2, RotateCcw, ThumbsDown, ThumbsUp, Trophy } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
-import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
+import AccountingTable, { blankCopyOf as blankAccountingCopyOf, emptyAccountingData } from '../../components/AccountingTable'
 import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
 import { useExamQuestionPool, type ExamQuestion } from '../../hooks/useExam'
 import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
@@ -54,6 +54,9 @@ export default function ExamSession() {
   useEffect(() => {
     if (current && current.question_type === 'table' && !current.reversed && current.table_data) {
       setTableAnswer(blankCopyOf(current.table_data))
+    }
+    if (current && current.question_type === 'accounting' && !current.reversed && current.accounting_data) {
+      setAccountingAnswer(blankAccountingCopyOf(current.accounting_data))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.question_id, current?.reversed])
@@ -172,7 +175,7 @@ export default function ExamSession() {
             </div>
 
             {isAccounting ? (
-              <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} />
+              <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} lockStructure />
             ) : isTable ? (
               <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
             ) : (

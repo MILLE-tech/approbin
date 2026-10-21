@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { m, AnimatePresence } from 'motion/react'
 import { CheckCircle2, Clock, XCircle, Pencil, Power, Repeat, Check, X, Calculator, Table2, Type } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
-import AccountingTable, { emptyAccountingData } from '../../components/AccountingTable'
+import AccountingTable, { blankCopyOf as blankAccountingCopyOf, emptyAccountingData, finalizeAccountingData } from '../../components/AccountingTable'
 import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
 import { useQuizQueue, useSubmitQuizAnswer, type DueRow } from '../../hooks/useQuiz'
 import { useToggleQuestionActive, useToggleQuestionReverse, useUpdateQuestion } from '../../hooks/useQuestions'
@@ -59,6 +59,9 @@ export default function QuizSession() {
     if (current?.question_type === 'table' && !current._reversed && current.table_data) {
       setTableAnswer(blankCopyOf(current.table_data))
     }
+    if (current?.question_type === 'accounting' && !current._reversed && current.accounting_data) {
+      setAccountingAnswer(blankAccountingCopyOf(current.accounting_data))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.question_id, current?._reversed])
 
@@ -106,12 +109,14 @@ export default function QuizSession() {
     if (!current || !editQuestion.trim()) return
     if (editType === 'text' && !editAnswer.trim()) return
 
+    const finalizedAccounting = editType === 'accounting' ? finalizeAccountingData(editAccounting) : null
+
     await updateQuestion.mutateAsync({
       id: current.question_id,
       question: editQuestion.trim(),
       answer: editType === 'text' ? editAnswer.trim() : '',
       questionType: editType,
-      accountingData: editType === 'accounting' ? editAccounting : null,
+      accountingData: finalizedAccounting,
       tableData: editType === 'table' ? editTable : null,
       canReverse: current.can_reverse,
     })
@@ -124,7 +129,7 @@ export default function QuizSession() {
               question: editQuestion.trim(),
               answer: editType === 'text' ? editAnswer.trim() : '',
               question_type: editType,
-              accounting_data: editType === 'accounting' ? editAccounting : null,
+              accounting_data: finalizedAccounting,
               table_data: editType === 'table' ? editTable : null,
             }
           : item,
@@ -310,7 +315,7 @@ export default function QuizSession() {
             {!isEditing && (
               <>
                 {isAccounting ? (
-                  <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} />
+                  <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} lockStructure />
                 ) : isTable ? (
                   <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
                 ) : (

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { m } from 'motion/react'
 import { Pencil, Trash2, Check, X, Repeat, Power, Calculator, Table2, Type } from 'lucide-react'
-import AccountingTable, { emptyAccountingData } from './AccountingTable'
+import AccountingTable, { emptyAccountingData, finalizeAccountingData } from './AccountingTable'
 import GenericTable, { emptyTableData } from './GenericTable'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useMotionPreferences } from '../contexts/MotionPreferencesContext'
@@ -63,7 +63,7 @@ export default function QuestionRow({
       question: editQuestion.trim(),
       answer: editType === 'text' ? editAnswer.trim() : '',
       questionType: editType,
-      accountingData: editType === 'accounting' ? editAccounting : null,
+      accountingData: editType === 'accounting' ? finalizeAccountingData(editAccounting) : null,
       tableData: editType === 'table' ? editTable : null,
       canReverse: q.can_reverse,
     })
