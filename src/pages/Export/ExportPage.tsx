@@ -17,6 +17,8 @@ export default function ExportPage() {
   const [format, setFormat] = useState<Format>('pdf')
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Coche ✅ à côté des chapitres déjà exportés pendant cette session (non persisté).
+  const [exportedChapterIds, setExportedChapterIds] = useState<Set<string>>(new Set())
   const { reducedMotion } = useMotionPreferences()
   const transition = reducedMotion ? reducedMotionTransition : springs.default
   const rVariants = revealVariants(reducedMotion)
@@ -53,6 +55,7 @@ export default function ExportPage() {
       } else {
         await exportToWord(chapters, fileName)
       }
+      setExportedChapterIds((prev) => new Set([...prev, ...chapters.map((c) => c.id)]))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Échec de l'export.")
     } finally {
@@ -131,7 +134,12 @@ export default function ExportPage() {
                     <p className="text-sm font-semibold text-slate-800 mb-2">{subject.name}</p>
                     <div className="space-y-1.5">
                       {subject.chapters.map((chapter) => (
-                        <label key={chapter.id} className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                        <label
+                          key={chapter.id}
+                          className={`flex items-center gap-2 text-sm cursor-pointer rounded-lg px-2 py-1 -mx-2 ${
+                            chapter.questionsReady ? 'bg-success-50 text-success-700' : 'text-slate-600'
+                          }`}
+                        >
                           <input
                             type="checkbox"
                             checked={selected.has(chapter.id)}
@@ -139,10 +147,11 @@ export default function ExportPage() {
                             className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                           />
                           {chapter.name}
-                          <span className="text-slate-400">
+                          <span className={chapter.questionsReady ? 'text-success-600' : 'text-slate-400'}>
                             ({chapter.sheetsCount} fiche{chapter.sheetsCount > 1 ? 's' : ''}, {chapter.questionsCount}{' '}
                             question{chapter.questionsCount > 1 ? 's' : ''})
                           </span>
+                          {exportedChapterIds.has(chapter.id) && <span title="Déjà exporté">✅</span>}
                         </label>
                       ))}
                     </div>

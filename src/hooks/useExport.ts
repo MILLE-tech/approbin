@@ -8,6 +8,7 @@ export interface ExportOverviewChapter {
   name: string
   sheetsCount: number
   questionsCount: number
+  questionsReady: boolean
 }
 
 export interface ExportOverviewSubject {
@@ -26,7 +27,7 @@ export function useExportOverview() {
     queryFn: async (): Promise<ExportOverviewSubject[]> => {
       const [{ data: subjects, error: subjectsError }, { data: chapters, error: chaptersError }] = await Promise.all([
         supabase.from('subjects').select('id, name').eq('user_id', user!.id).order('position'),
-        supabase.from('chapters').select('id, name, subject_id').eq('user_id', user!.id).order('position'),
+        supabase.from('chapters').select('id, name, subject_id, questions_ready').eq('user_id', user!.id).order('position'),
       ])
       if (subjectsError) throw subjectsError
       if (chaptersError) throw chaptersError
@@ -59,6 +60,7 @@ export function useExportOverview() {
             name: c.name,
             sheetsCount: sheetsCount.get(c.id) ?? 0,
             questionsCount: questionsCount.get(c.id) ?? 0,
+            questionsReady: c.questions_ready,
           })),
       }))
     },
@@ -66,6 +68,7 @@ export function useExportOverview() {
 }
 
 export interface ExportChapterContent {
+  id: string
   subjectName: string
   chapterName: string
   sheets: Sheet[]
@@ -105,6 +108,7 @@ export function useExportContent(
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return ((chapters ?? []) as any[]).map((chapter) => ({
+        id: chapter.id,
         subjectName: chapter.subject.name,
         chapterName: chapter.name,
         sheets: ((sheets ?? []) as Sheet[]).filter((s) => s.chapter_id === chapter.id),
