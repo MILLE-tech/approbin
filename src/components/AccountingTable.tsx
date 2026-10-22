@@ -1,5 +1,5 @@
-import { useState, type ChangeEvent } from 'react'
-import { GripVertical, Plus, Trash2 } from 'lucide-react'
+import { type ChangeEvent } from 'react'
+import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
 import type { AccountingData, AccountingRow } from '../types/database'
 
 export function emptyAccountingRow(): AccountingRow {
@@ -131,7 +131,6 @@ function cursorAfterNthSignificant(str: string, n: number): number {
 export default function AccountingTable({ data, onChange, readOnly = false, lockStructure = false }: AccountingTableProps) {
   const editableCells = !readOnly && !!onChange
   const editableStructure = editableCells && !lockStructure
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
   const libelleTotals = computeLibelleTotals(data)
 
   function updateRow(index: number, patch: Partial<AccountingRow>) {
@@ -156,7 +155,7 @@ export default function AccountingTable({ data, onChange, readOnly = false, lock
   }
 
   function moveRow(from: number, to: number) {
-    if (!onChange || from === to) return
+    if (!onChange || to < 0 || to >= data.rows.length) return
     const rows = [...data.rows]
     const [moved] = rows.splice(from, 1)
     rows.splice(to, 0, moved)
@@ -183,7 +182,7 @@ export default function AccountingTable({ data, onChange, readOnly = false, lock
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-slate-50 text-[11px] text-slate-500 uppercase">
-            {editableStructure && <th className="w-6" />}
+            {editableStructure && <th className="w-7" />}
             <th className="px-2 py-1.5 text-left font-medium">N° compte débit</th>
             <th className="px-2 py-1.5 text-left font-medium">N° compte crédit</th>
             <th className="px-2 py-1.5 text-left font-medium">Libellé</th>
@@ -194,22 +193,29 @@ export default function AccountingTable({ data, onChange, readOnly = false, lock
         </thead>
         <tbody>
           {data.rows.map((row, i) => (
-            <tr
-              key={i}
-              draggable={editableStructure}
-              onDragStart={() => setDragIndex(i)}
-              onDragOver={(e) => editableStructure && e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault()
-                if (dragIndex !== null) moveRow(dragIndex, i)
-                setDragIndex(null)
-              }}
-              onDragEnd={() => setDragIndex(null)}
-              className={`border-t border-slate-100 ${row.kind === 'libelle' ? 'bg-slate-50/80' : ''}`}
-            >
+            <tr key={i} className={`border-t border-slate-100 ${row.kind === 'libelle' ? 'bg-slate-50/80' : ''}`}>
               {editableStructure && (
-                <td className="pl-1.5 text-slate-300 cursor-grab active:cursor-grabbing">
-                  <GripVertical size={14} />
+                <td className="pl-1">
+                  <div className="flex flex-col">
+                    <button
+                      type="button"
+                      onClick={() => moveRow(i, i - 1)}
+                      disabled={i === 0}
+                      className="text-slate-300 hover:text-brand-600 disabled:opacity-30 disabled:hover:text-slate-300"
+                      aria-label="Monter la ligne"
+                    >
+                      <ChevronUp size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveRow(i, i + 1)}
+                      disabled={i === data.rows.length - 1}
+                      className="text-slate-300 hover:text-brand-600 disabled:opacity-30 disabled:hover:text-slate-300"
+                      aria-label="Descendre la ligne"
+                    >
+                      <ChevronDown size={13} />
+                    </button>
+                  </div>
                 </td>
               )}
               {row.kind === 'libelle' ? (
