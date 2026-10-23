@@ -14,9 +14,15 @@ export function emptyAccountingData(): AccountingData {
   return { rows: [emptyAccountingRow()] }
 }
 
-/** Mêmes lignes qu'une AccountingData existante, mais tous les montants vides (pour répondre à la question). */
+/**
+ * Pour répondre à la question : les lignes « libellé » gardent leur nom (elles structurent
+ * l'exercice) mais pas leur montant ; les lignes normales sont entièrement vides (comptes et
+ * libellé compris), seul le nombre de lignes est conservé.
+ */
 export function blankCopyOf(data: AccountingData): AccountingData {
-  return { rows: data.rows.map((row) => ({ ...row, montantDebit: '', montantCredit: '' })) }
+  return {
+    rows: data.rows.map((row) => (row.kind === 'libelle' ? { ...row, montantDebit: '', montantCredit: '' } : emptyAccountingRow())),
+  }
 }
 
 export function parseAmount(value: string): number {
@@ -234,7 +240,7 @@ export default function AccountingTable({ data, onChange, readOnly = false, lock
               ) : (
                 <>
                   <td className="border-r border-slate-100">
-                    {editableStructure ? (
+                    {editableCells ? (
                       <input
                         value={row.compteDebit}
                         maxLength={5}
@@ -247,7 +253,7 @@ export default function AccountingTable({ data, onChange, readOnly = false, lock
                     )}
                   </td>
                   <td className="border-r border-slate-100">
-                    {editableStructure ? (
+                    {editableCells ? (
                       <input
                         value={row.compteCredit}
                         maxLength={5}
@@ -260,7 +266,7 @@ export default function AccountingTable({ data, onChange, readOnly = false, lock
                     )}
                   </td>
                   <td className="border-r border-slate-100">
-                    {editableStructure ? (
+                    {editableCells ? (
                       <input value={row.libelle} onChange={(e) => updateRow(i, { libelle: e.target.value })} className={cellClass} />
                     ) : (
                       <span className="block px-2 py-1.5">{row.libelle}</span>
