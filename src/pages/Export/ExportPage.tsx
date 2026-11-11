@@ -3,7 +3,7 @@ import { m, AnimatePresence } from 'motion/react'
 import { Download, FileText, FileType2 } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import { useExportOverview, useExportContent } from '../../hooks/useExport'
-import { exportToPdf, exportToWord } from '../../lib/exportDocument'
+import { exportChapters } from '../../lib/exportDocument'
 import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
 import { springs, reducedMotionTransition, revealVariants } from '../../lib/motionTokens'
 
@@ -49,12 +49,7 @@ export default function ExportPage() {
         setError('Aucun contenu à exporter pour cette sélection.')
         return
       }
-      const fileName = `Approbin-export-${new Date().toISOString().slice(0, 10)}`
-      if (format === 'pdf') {
-        await exportToPdf(chapters, fileName)
-      } else {
-        await exportToWord(chapters, fileName)
-      }
+      await exportChapters(chapters, format)
       setExportedChapterIds((prev) => new Set([...prev, ...chapters.map((c) => c.id)]))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Échec de l'export.")
@@ -183,6 +178,9 @@ export default function ExportPage() {
               <Download size={16} />
               {exporting ? 'Génération…' : 'Exporter'}
             </m.button>
+            <p className="text-xs text-slate-400 -mt-3">
+              Un seul chapitre : un fichier. Plusieurs chapitres : un dossier (.zip) avec un fichier par chapitre.
+            </p>
           </>
         )}
       </div>

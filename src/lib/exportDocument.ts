@@ -1,257 +1,604 @@
 import type { ExportChapterContent } from '../hooks/useExport'
 import { formatAmount } from '../components/AccountingTable'
-import { rowLabelsOf } from '../components/GenericTable'
-import type { AccountingData, TableData } from '../types/database'
+import { columnWidthsOf, rowLabelsOf } from '../components/GenericTable'
+import { DEFAULT_COLOR } from '../components/DrawingCanvas'
+import type { AccountingData, DrawingData, Question, TableData } from '../types/database'
+
+export type ExportFormat = 'pdf' | 'word'
 
 function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = fileName
+  // Certains navigateurs ignorent un nom de téléchargement accentué et enregistrent "download".
+  a.download = fileName.normalize('NFD').replace(/[̀-ͯ]/g, '')
   document.body.appendChild(a)
   a.click()
   a.remove()
-  URL.revokeObjectURL(url)
+  // Libérer l'URL tout de suite peut faire perdre le nom du fichier à certains navigateurs.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
-function questionTypeLabel(type: string) {
-  if (type === 'accounting') return ' (écriture comptable)'
-  if (type === 'table') return ' (tableau)'
-  if (type === 'drawing') return ' (schéma)'
+function safeFileName(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 100) || 'chapitre'
+}
+
+function byCreation<T extends { created_at: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => a.created_at.localeCompare(b.created_at))
+}
+
+function typeLabel(q: Question): string {
+  if (q.question_type === 'accounting') return 'Écriture comptable'
+  if (q.question_type === 'table') return 'Tableau'
+  if (q.question_type === 'drawing') return 'Schéma'
   return ''
 }
 
-// ========== PDF (jsPDF, génération texte paginée) ==========
+const today = () => new Date().toLocaleDateString('fr-FR')
 
-export async function exportToPdf(chapters: ExportChapterContent[], fileName: string) {
-  const { default: jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const margin = 40
-  const maxWidth = pageWidth - margin * 2
-  let y = margin
+// ========== Modèle de tableau commun PDF / Word ==========
 
-  function ensureSpace(lineHeight: number) {
-    if (y + lineHeight > pageHeight - margin) {
-      doc.addPage()
-      y = margin
-    }
-  }
+type Align = 'left' | 'right' | 'center'
 
-  function writeLines(text: string, { size = 10, font = 'helvetica', style = 'normal', gap = 14 } = {}) {
-    doc.setFont(font, style)
-    doc.setFontSize(size)
-    const lines = doc.splitTextToSize(text, maxWidth) as string[]
-    for (const line of lines) {
-      ensureSpace(gap)
-      doc.text(line, margin, y)
-      y += gap
-    }
-  }
-
-  function writeAccountingTable(data: AccountingData) {
-    doc.setFont('courier', 'normal')
-    doc.setFontSize(9)
-    const header = ['Débit', 'Crédit', 'Libellé', 'Mt débit', 'Mt crédit', 'Solder']
-      .map((h) => h.padEnd(14))
-      .join('')
-    writeLines(header, { size: 9, font: 'courier', style: 'bold', gap: 12 })
-    for (const row of data.rows) {
-      const isLibelle = row.kind === 'libelle'
-      const line = [
-        isLibelle ? '' : row.compteDebit,
-        isLibelle ? '' : row.compteCredit,
-        row.libelle,
-        formatAmount(row.montantDebit),
-        formatAmount(row.montantCredit),
-        !isLibelle && row.solder ? 'PS' : '',
-      ]
-        .map((v) => (v || '').toString().padEnd(14))
-        .join('')
-      writeLines(line, { size: 9, font: 'courier', style: isLibelle ? 'bold' : 'normal', gap: 12 })
-    }
-  }
-
-  function writeGenericTable(data: TableData) {
-    const colWidth = 16
-    const labels = rowLabelsOf(data)
-    writeLines(['', ...data.headers].map((h) => h.padEnd(colWidth)).join(''), { size: 9, font: 'courier', style: 'bold', gap: 12 })
-    data.rows.forEach((row, i) => {
-      writeLines([labels[i] ?? '', ...row].map((cell) => (cell || '').padEnd(colWidth)).join(''), { size: 9, font: 'courier', gap: 12 })
-    })
-  }
-
-  writeLines(fileName, { size: 18, style: 'bold', gap: 24 })
-  writeLines(`Exporté le ${new Date().toLocaleDateString('fr-FR')}`, { size: 9, gap: 20 })
-
-  chapters.forEach((chapter, chapterIndex) => {
-    if (chapterIndex > 0) {
-      doc.addPage()
-      y = margin
-    }
-    y += 8
-    writeLines(`${chapter.subjectName} — ${chapter.chapterName}`, { size: 14, style: 'bold', gap: 20 })
-
-    if (chapter.sheets.length > 0) {
-      writeLines('Fiches', { size: 11, style: 'bold', gap: 16 })
-      for (const sheet of chapter.sheets) {
-        writeLines(sheet.title, { size: 10, style: 'bold', gap: 14 })
-        if (sheet.content) {
-          writeLines(sheet.content, { size: 10, gap: 13 })
-        } else {
-          writeLines('(document importé — disponible dans l\'application)', { size: 9, gap: 13 })
-        }
-        y += 6
-      }
-    }
-
-    if (chapter.questions.length > 0) {
-      writeLines('Questions', { size: 11, style: 'bold', gap: 16 })
-      for (const q of chapter.questions) {
-        writeLines(`Q : ${q.question}${questionTypeLabel(q.question_type)}`, { size: 10, style: 'bold', gap: 13 })
-        if (q.question_type === 'accounting' && q.accounting_data) {
-          writeAccountingTable(q.accounting_data)
-        } else if (q.question_type === 'table' && q.table_data) {
-          writeGenericTable(q.table_data)
-        } else if (q.question_type === 'drawing') {
-          writeLines('(schéma dessiné — disponible dans l\'application)', { size: 9, gap: 13 })
-        } else {
-          writeLines(`R : ${q.answer}`, { size: 10, gap: 13 })
-        }
-        y += 6
-      }
-    }
-  })
-
-  doc.save(`${fileName}.pdf`)
+interface TableModel {
+  cols: { header: string; width: number; align?: Align }[]
+  rows: { text: string; bold?: boolean; shaded?: boolean }[][]
 }
 
-// ========== Word (docx) ==========
+function accountingModel(data: AccountingData): TableModel {
+  return {
+    cols: [
+      { header: 'N° débit', width: 0.12 },
+      { header: 'N° crédit', width: 0.12 },
+      { header: 'Libellé', width: 0.34 },
+      { header: 'Débit', width: 0.16, align: 'right' },
+      { header: 'Crédit', width: 0.16, align: 'right' },
+      { header: 'Solder', width: 0.1, align: 'center' },
+    ],
+    rows: data.rows.map((row) => {
+      const libelle = row.kind === 'libelle'
+      return [
+        { text: libelle ? '' : row.compteDebit, shaded: libelle },
+        { text: libelle ? '' : row.compteCredit, shaded: libelle },
+        { text: row.libelle, bold: libelle, shaded: libelle },
+        { text: formatAmount(row.montantDebit), bold: libelle, shaded: libelle },
+        { text: formatAmount(row.montantCredit), bold: libelle, shaded: libelle },
+        { text: !libelle && row.solder ? 'PS' : '', shaded: libelle },
+      ]
+    }),
+  }
+}
 
-export async function exportToWord(chapters: ExportChapterContent[], fileName: string) {
+function genericModel(data: TableData): TableModel {
+  const labels = rowLabelsOf(data)
+  const hasLabels = labels.some((l) => l.trim())
+  const widths = columnWidthsOf(data)
+  const total = widths.reduce((a, b) => a + b, 0) || 1
+  const dataShare = hasLabels ? 0.75 : 1
+  return {
+    cols: [
+      ...(hasLabels ? [{ header: '', width: 0.25 }] : []),
+      ...data.headers.map((header, i) => ({ header, width: (widths[i] / total) * dataShare })),
+    ],
+    rows: data.rows.map((row, r) => [
+      ...(hasLabels ? [{ text: labels[r] ?? '', bold: true, shaded: true }] : []),
+      ...row.map((cell) => ({ text: cell })),
+    ]),
+  }
+}
+
+// ========== PDF ==========
+
+type RGB = [number, number, number]
+const BRAND: RGB = [79, 70, 229]
+const BRAND_LIGHT: RGB = [238, 242, 255]
+const INK: RGB = [15, 23, 42]
+const BODY: RGB = [51, 65, 85]
+const MUTED: RGB = [100, 116, 139]
+const BORDER: RGB = [203, 213, 225]
+const SOFT: RGB = [241, 245, 249]
+const DANGER: RGB = [220, 38, 38]
+
+function hexToRgb(hex: string): RGB {
+  const h = hex.replace('#', '')
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+}
+
+/** Les polices standard du PDF ne connaissent pas l'espace fine insécable utilisée par fr-FR. */
+function pdfSafe(text: string): string {
+  return text.replace(/[  ]/g, ' ')
+}
+
+async function buildPdf(chapter: ExportChapterContent): Promise<Blob> {
+  const { default: jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
+  const M = 48
+  const W = pageW - M * 2
+  const BOTTOM = pageH - 56
+  let y = M
+  let onNewPage: (() => void) | null = null
+
+  function setText(size: number, style: 'normal' | 'bold' | 'italic', color: RGB) {
+    doc.setFont('helvetica', style)
+    doc.setFontSize(size)
+    doc.setTextColor(...color)
+  }
+
+  function ensure(height: number) {
+    if (y + height > BOTTOM && y > M + 1) {
+      doc.addPage()
+      y = M
+      onNewPage?.()
+    }
+  }
+
+  function paragraph(
+    text: string,
+    {
+      size = 10.5,
+      style = 'normal',
+      color = BODY,
+      lh,
+      after = 0,
+    }: { size?: number; style?: 'normal' | 'bold' | 'italic'; color?: RGB; lh?: number; after?: number } = {},
+  ) {
+    lh ??= size * 1.45
+    setText(size, style, color)
+    const lines = doc.splitTextToSize(pdfSafe(text), W) as string[]
+    for (const line of lines) {
+      ensure(lh)
+      setText(size, style, color)
+      doc.text(line, M, y + (lh - size) / 2, { baseline: 'top' })
+      y += lh
+    }
+    y += after
+  }
+
+  function section(title: string) {
+    ensure(48)
+    y += 8
+    setText(14, 'bold', INK)
+    doc.text(title, M, y, { baseline: 'top' })
+    y += 20
+    doc.setDrawColor(...BORDER)
+    doc.setLineWidth(0.75)
+    doc.line(M, y, M + W, y)
+    y += 14
+  }
+
+  function answerBox(text: string) {
+    const size = 10.5
+    const lh = 15
+    const pad = 6
+    const padX = 12
+    setText(size, 'normal', BODY)
+    const lines = doc.splitTextToSize(pdfSafe(text.trim() || '—'), W - padX * 2) as string[]
+    lines.forEach((line, i) => {
+      const top = i === 0 ? pad : 0
+      const bottom = i === lines.length - 1 ? pad : 0
+      const h = lh + top + bottom
+      ensure(h)
+      doc.setFillColor(...SOFT)
+      doc.rect(M, y, W, h, 'F')
+      doc.setFillColor(...BRAND)
+      doc.rect(M, y, 3, h, 'F')
+      setText(size, 'normal', BODY)
+      doc.text(line, M + padX, y + top + (lh - size) / 2, { baseline: 'top' })
+      y += h
+    })
+  }
+
+  function table(model: TableModel) {
+    const size = 9
+    const lh = 11.5
+    const pad = 5
+    const widths = model.cols.map((c) => c.width * W)
+    const xs: number[] = []
+    widths.forEach((_, i) => xs.push(i === 0 ? M : xs[i - 1] + widths[i - 1]))
+
+    function drawRow(cells: { text: string; bold?: boolean; shaded?: boolean }[], header: boolean) {
+      const lineSets = cells.map((c, i) => {
+        setText(size, header || c.bold ? 'bold' : 'normal', INK)
+        return doc.splitTextToSize(pdfSafe(c.text || ''), widths[i] - pad * 2) as string[]
+      })
+      const h = Math.max(1, ...lineSets.map((l) => l.length)) * lh + pad * 2
+      ensure(h)
+      cells.forEach((c, i) => {
+        const fill = header ? BRAND_LIGHT : c.shaded ? SOFT : null
+        if (fill) {
+          doc.setFillColor(...fill)
+          doc.rect(xs[i], y, widths[i], h, 'F')
+        }
+        doc.setDrawColor(...BORDER)
+        doc.setLineWidth(0.5)
+        doc.rect(xs[i], y, widths[i], h, 'S')
+        setText(size, header || c.bold ? 'bold' : 'normal', header ? BRAND : INK)
+        const align = model.cols[i].align ?? 'left'
+        const tx = align === 'right' ? xs[i] + widths[i] - pad : align === 'center' ? xs[i] + widths[i] / 2 : xs[i] + pad
+        lineSets[i].forEach((line, li) => {
+          doc.text(line, tx, y + pad + li * lh + (lh - size) / 2, { baseline: 'top', align })
+        })
+      })
+      y += h
+    }
+
+    const headerCells = model.cols.map((c) => ({ text: c.header }))
+    ensure(lh * 2 + pad * 4)
+    drawRow(headerCells, true)
+    onNewPage = () => drawRow(headerCells, true)
+    model.rows.forEach((row) => drawRow(row, false))
+    onNewPage = null
+    y += 4
+  }
+
+  function drawing(data: DrawingData | null) {
+    const scale = W / 1000
+    const h = 560 * scale
+    ensure(h + 8)
+    doc.setDrawColor(...BORDER)
+    doc.setLineWidth(0.75)
+    doc.rect(M, y, W, h, 'S')
+    doc.setLineCap('round')
+    doc.setLineJoin('round')
+    for (const stroke of data?.strokes ?? []) {
+      const color = hexToRgb(stroke.color ?? DEFAULT_COLOR)
+      if (stroke.kind === 'text') {
+        const p = stroke.points[0]
+        if (!p) continue
+        setText(30 * scale, 'normal', color)
+        doc.text(pdfSafe(stroke.text ?? ''), M + p.x * scale, y + p.y * scale, { baseline: 'middle' })
+        continue
+      }
+      doc.setDrawColor(...color)
+      doc.setLineWidth(3 * scale)
+      for (let i = 1; i < stroke.points.length; i++) {
+        const a = stroke.points[i - 1]
+        const b = stroke.points[i]
+        doc.line(M + a.x * scale, y + a.y * scale, M + b.x * scale, y + b.y * scale)
+      }
+    }
+    doc.setLineCap('butt')
+    y += h + 8
+  }
+
+  // En-tête
+  setText(9, 'bold', BRAND)
+  doc.text(pdfSafe(chapter.subjectName.toUpperCase()), M, y, { baseline: 'top' })
+  y += 16
+  paragraph(chapter.chapterName, { size: 22, style: 'bold', color: INK, lh: 28 })
+  setText(9, 'normal', MUTED)
+  doc.text(`Exporté le ${today()}`, M, y + 2, { baseline: 'top' })
+  y += 18
+  doc.setDrawColor(...BRAND)
+  doc.setLineWidth(2)
+  doc.line(M, y, M + 40, y)
+  y += 16
+
+  const sheets = byCreation(chapter.sheets)
+  if (sheets.length > 0) {
+    section(`Fiches (${sheets.length})`)
+    for (const sheet of sheets) {
+      ensure(40)
+      paragraph(sheet.title, { size: 12.5, style: 'bold', color: INK, after: 4 })
+      if (sheet.content) paragraph(sheet.content, { after: 16 })
+      else paragraph("Document importé — à consulter dans l'application.", { size: 9.5, style: 'italic', color: MUTED, after: 16 })
+    }
+  }
+
+  const questions = byCreation(chapter.questions)
+  if (questions.length > 0) {
+    section(`Questions (${questions.length})`)
+    questions.forEach((q, i) => {
+      ensure(60)
+      const kind = typeLabel(q)
+      const label = `QUESTION ${i + 1}${kind ? `  ·  ${kind.toUpperCase()}` : ''}`
+      setText(8.5, 'bold', BRAND)
+      doc.text(label, M, y, { baseline: 'top' })
+      if (q.flagged) {
+        const w = doc.getTextWidth(label)
+        setText(8.5, 'bold', DANGER)
+        doc.text('  ·  SIGNALÉE', M + w, y, { baseline: 'top' })
+      }
+      y += 14
+      paragraph(q.question, { size: 11.5, style: 'bold', color: INK, after: 6 })
+
+      if (q.question_type === 'accounting' && q.accounting_data) table(accountingModel(q.accounting_data))
+      else if (q.question_type === 'table' && q.table_data) table(genericModel(q.table_data))
+      else if (q.question_type === 'drawing') drawing(q.drawing_data)
+      else answerBox(q.answer)
+
+      if (i < questions.length - 1) {
+        y += 12
+        ensure(16)
+        doc.setDrawColor(...BORDER)
+        doc.setLineWidth(0.5)
+        doc.setLineDashPattern([2, 3], 0)
+        doc.line(M, y, M + W, y)
+        doc.setLineDashPattern([], 0)
+        y += 16
+      }
+    })
+  }
+
+  // Pied de page
+  const total = doc.getNumberOfPages()
+  const footerLabel = pdfSafe(`${chapter.subjectName} · ${chapter.chapterName}`)
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p)
+    setText(8, 'normal', MUTED)
+    doc.text((doc.splitTextToSize(footerLabel, W * 0.75) as string[])[0], M, pageH - 32)
+    doc.text(`${p} / ${total}`, pageW - M, pageH - 32, { align: 'right' })
+  }
+
+  return doc.output('blob')
+}
+
+// ========== Word ==========
+
+async function drawingToPng(data: DrawingData | null): Promise<Uint8Array> {
+  const scale = 2
+  const canvas = document.createElement('canvas')
+  canvas.width = 1000 * scale
+  canvas.height = 560 * scale
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(scale, scale)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, 1000, 560)
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  for (const stroke of data?.strokes ?? []) {
+    const color = stroke.color ?? DEFAULT_COLOR
+    if (stroke.kind === 'text') {
+      const p = stroke.points[0]
+      if (!p) continue
+      ctx.fillStyle = color
+      ctx.font = '30px sans-serif'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(stroke.text ?? '', p.x, p.y)
+      continue
+    }
+    if (stroke.points.length < 2) continue
+    ctx.strokeStyle = color
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y)
+    for (const p of stroke.points.slice(1)) ctx.lineTo(p.x, p.y)
+    ctx.stroke()
+  }
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Image du schéma impossible à générer'))), 'image/png'),
+  )
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
+async function buildWord(chapter: ExportChapterContent): Promise<Blob> {
   const {
+    AlignmentType,
+    BorderStyle,
     Document,
-    Packer,
-    Paragraph,
+    Footer,
     HeadingLevel,
+    ImageRun,
+    Packer,
+    PageNumber,
+    Paragraph,
+    ShadingType,
     Table,
-    TableRow,
     TableCell,
-    WidthType,
+    TableLayoutType,
+    TableRow,
     TextRun,
+    WidthType,
   } = await import('docx')
 
-  function accountingTableToDocx(data: AccountingData) {
-    const headerRow = new TableRow({
-      children: ['N° débit', 'N° crédit', 'Libellé', 'Montant débit', 'Montant crédit', 'Solder'].map(
-        (text) =>
-          new TableCell({
-            width: { size: 100 / 6, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })],
-          }),
-      ),
-    })
-    const rows = data.rows.map((row) => {
-      const isLibelle = row.kind === 'libelle'
-      const cells = [
-        isLibelle ? '' : row.compteDebit,
-        isLibelle ? '' : row.compteCredit,
-        row.libelle,
-        formatAmount(row.montantDebit),
-        formatAmount(row.montantCredit),
-        !isLibelle && row.solder ? 'PS' : '',
-      ]
-      return new TableRow({
-        children: cells.map(
-          (text) =>
-            new TableCell({
-              width: { size: 100 / 6, type: WidthType.PERCENTAGE },
-              children: [isLibelle ? new Paragraph({ children: [new TextRun({ text, bold: true })] }) : new Paragraph(text || '')],
-            }),
-        ),
-      })
-    })
-    return [new Table({ rows: [headerRow, ...rows], width: { size: 100, type: WidthType.PERCENTAGE } })]
+  // Largeur utile d'une page A4 avec les marges par défaut (2,54 cm), en twips.
+  const TEXT_WIDTH = 9026
+  const C = {
+    brand: '4F46E5',
+    brandLight: 'EEF2FF',
+    ink: '0F172A',
+    body: '334155',
+    muted: '64748B',
+    border: 'CBD5E1',
+    soft: 'F1F5F9',
+    danger: 'DC2626',
   }
 
-  function genericTableToDocx(data: TableData) {
-    const labels = rowLabelsOf(data)
-    const colCount = data.headers.length + 1
-    const colSize = Math.floor(100 / colCount)
-    const headerRow = new TableRow({
-      children: ['', ...data.headers].map(
-        (text) =>
-          new TableCell({
-            width: { size: colSize, type: WidthType.PERCENTAGE },
-            children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })],
+  const run = (text: string, o: { bold?: boolean; italics?: boolean; color?: string; size?: number; allCaps?: boolean } = {}) =>
+    new TextRun({ text, bold: o.bold, italics: o.italics, allCaps: o.allCaps, color: o.color ?? C.body, size: o.size ?? 21 })
+
+  const multiline = (text: string, o: { bold?: boolean; color?: string; size?: number } = {}) =>
+    text
+      .split('\n')
+      .map((line, i) => new TextRun({ text: line, break: i > 0 ? 1 : undefined, bold: o.bold, color: o.color ?? C.body, size: o.size ?? 21 }))
+
+  const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: C.border }
+  const alignOf = (a?: Align) => (a === 'right' ? AlignmentType.RIGHT : a === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT)
+
+  function table(model: TableModel) {
+    const widths = model.cols.map((c) => Math.round(c.width * TEXT_WIDTH))
+    const cell = (text: string, i: number, o: { bold?: boolean; color?: string; fill?: string }) =>
+      new TableCell({
+        width: { size: widths[i], type: WidthType.DXA },
+        shading: o.fill ? { type: ShadingType.CLEAR, fill: o.fill, color: 'auto' } : undefined,
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+        children: [
+          new Paragraph({
+            alignment: alignOf(model.cols[i].align),
+            children: [run(text, { bold: o.bold, color: o.color ?? C.ink, size: 19 })],
           }),
-      ),
-    })
-    const rows = data.rows.map(
-      (row, i) =>
+        ],
+      })
+    return new Table({
+      width: { size: TEXT_WIDTH, type: WidthType.DXA },
+      columnWidths: widths,
+      layout: TableLayoutType.FIXED,
+      borders: {
+        top: cellBorder,
+        bottom: cellBorder,
+        left: cellBorder,
+        right: cellBorder,
+        insideHorizontal: cellBorder,
+        insideVertical: cellBorder,
+      },
+      rows: [
         new TableRow({
-          children: [labels[i] ?? '', ...row].map(
-            (cell) =>
-              new TableCell({
-                width: { size: colSize, type: WidthType.PERCENTAGE },
-                children: [new Paragraph(cell || '')],
-              }),
-          ),
+          tableHeader: true,
+          children: model.cols.map((c, i) => cell(c.header, i, { bold: true, color: C.brand, fill: C.brandLight })),
         }),
-    )
-    return [new Table({ rows: [headerRow, ...rows], width: { size: 100, type: WidthType.PERCENTAGE } })]
+        ...model.rows.map(
+          (row) =>
+            new TableRow({
+              cantSplit: true,
+              children: row.map((c, i) => cell(c.text, i, { bold: c.bold, fill: c.shaded ? C.soft : undefined })),
+            }),
+        ),
+      ],
+    })
   }
+
+  const section = (title: string) =>
+    new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 400, after: 160 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: C.border, space: 4 } },
+      children: [run(title, { bold: true, color: C.ink, size: 28 })],
+    })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const children: any[] = [
-    new Paragraph({ text: fileName, heading: HeadingLevel.TITLE }),
-    new Paragraph(`Exporté le ${new Date().toLocaleDateString('fr-FR')}`),
+    new Paragraph({ spacing: { after: 40 }, children: [run(chapter.subjectName, { bold: true, color: C.brand, size: 18, allCaps: true })] }),
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      spacing: { after: 80 },
+      children: [run(chapter.chapterName, { bold: true, color: C.ink, size: 44 })],
+    }),
+    new Paragraph({
+      spacing: { after: 200 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: C.brand, space: 8 } },
+      children: [run(`Exporté le ${today()}`, { color: C.muted, size: 18 })],
+    }),
   ]
 
-  chapters.forEach((chapter, chapterIndex) => {
-    children.push(
-      new Paragraph({
-        text: `${chapter.subjectName} — ${chapter.chapterName}`,
-        heading: HeadingLevel.HEADING_1,
-        pageBreakBefore: chapterIndex > 0,
-      }),
-    )
-
-    if (chapter.sheets.length > 0) {
-      children.push(new Paragraph({ text: 'Fiches', heading: HeadingLevel.HEADING_2 }))
-      for (const sheet of chapter.sheets) {
-        children.push(new Paragraph({ children: [new TextRun({ text: sheet.title, bold: true })] }))
-        if (sheet.content) {
-          for (const line of sheet.content.split('\n')) children.push(new Paragraph(line))
-        } else {
-          children.push(new Paragraph("(document importé — disponible dans l'application)"))
+  const sheets = byCreation(chapter.sheets)
+  if (sheets.length > 0) {
+    children.push(section(`Fiches (${sheets.length})`))
+    for (const sheet of sheets) {
+      children.push(
+        new Paragraph({ spacing: { before: 200, after: 80 }, keepNext: true, children: [run(sheet.title, { bold: true, color: C.ink, size: 25 })] }),
+      )
+      if (sheet.content) {
+        for (const line of sheet.content.split('\n')) {
+          children.push(new Paragraph({ spacing: { after: 80, line: 300 }, children: [run(line)] }))
         }
+      } else {
+        children.push(new Paragraph({ children: [run("Document importé — à consulter dans l'application.", { italics: true, color: C.muted, size: 19 })] }))
       }
     }
+  }
 
-    if (chapter.questions.length > 0) {
-      children.push(new Paragraph({ text: 'Questions', heading: HeadingLevel.HEADING_2 }))
-      for (const q of chapter.questions) {
+  const questions = byCreation(chapter.questions)
+  if (questions.length > 0) {
+    children.push(section(`Questions (${questions.length})`))
+    for (const [i, q] of questions.entries()) {
+      const kind = typeLabel(q)
+      children.push(
+        new Paragraph({
+          spacing: { before: 320, after: 60 },
+          keepNext: true,
+          children: [
+            run(`Question ${i + 1}${kind ? `  ·  ${kind}` : ''}`, { bold: true, color: C.brand, size: 17, allCaps: true }),
+            ...(q.flagged ? [run('  ·  Signalée', { bold: true, color: C.danger, size: 17, allCaps: true })] : []),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 120 }, keepNext: true, children: multiline(q.question, { bold: true, color: C.ink, size: 23 }) }),
+      )
+
+      if (q.question_type === 'accounting' && q.accounting_data) {
+        children.push(table(accountingModel(q.accounting_data)), new Paragraph({ children: [] }))
+      } else if (q.question_type === 'table' && q.table_data) {
+        children.push(table(genericModel(q.table_data)), new Paragraph({ children: [] }))
+      } else if (q.question_type === 'drawing') {
         children.push(
           new Paragraph({
-            children: [new TextRun({ text: `Q : ${q.question}${questionTypeLabel(q.question_type)}`, bold: true })],
+            border: {
+              top: cellBorder,
+              bottom: cellBorder,
+              left: cellBorder,
+              right: cellBorder,
+            },
+            children: [
+              new ImageRun({ type: 'png', data: await drawingToPng(q.drawing_data), transformation: { width: 600, height: 336 } }),
+            ],
           }),
         )
-        if (q.question_type === 'accounting' && q.accounting_data) {
-          children.push(...accountingTableToDocx(q.accounting_data))
-        } else if (q.question_type === 'table' && q.table_data) {
-          children.push(...genericTableToDocx(q.table_data))
-        } else if (q.question_type === 'drawing') {
-          children.push(new Paragraph("(schéma dessiné — disponible dans l'application)"))
-        } else {
-          children.push(new Paragraph(`R : ${q.answer}`))
-        }
+      } else {
+        children.push(
+          new Paragraph({
+            shading: { type: ShadingType.CLEAR, fill: C.soft, color: 'auto' },
+            border: { left: { style: BorderStyle.SINGLE, size: 24, color: C.brand, space: 8 } },
+            indent: { left: 160 },
+            spacing: { after: 120, line: 300 },
+            children: multiline(q.answer.trim() || '—'),
+          }),
+        )
       }
     }
-  })
+  }
 
-  const doc = new Document({ sections: [{ children }] })
-  const blob = await Packer.toBlob(doc)
-  downloadBlob(blob, `${fileName}.docx`)
+  const doc = new Document({
+    styles: { default: { document: { run: { font: 'Calibri', size: 21, color: C.body } } } },
+    sections: [
+      {
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({
+                    children: [`${chapter.subjectName} · ${chapter.chapterName}    `, PageNumber.CURRENT, ' / ', PageNumber.TOTAL_PAGES],
+                    size: 16,
+                    color: C.muted,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children,
+      },
+    ],
+  })
+  return Packer.toBlob(doc)
+}
+
+// ========== Point d'entrée ==========
+
+/** Un seul chapitre : télécharge directement le fichier. Plusieurs : un .zip contenant un dossier avec un fichier par chapitre. */
+export async function exportChapters(chapters: ExportChapterContent[], format: ExportFormat) {
+  const ext = format === 'pdf' ? 'pdf' : 'docx'
+  const build = format === 'pdf' ? buildPdf : buildWord
+  const fileNameOf = (c: ExportChapterContent) => safeFileName(`${c.subjectName} - ${c.chapterName}`)
+
+  if (chapters.length === 1) {
+    downloadBlob(await build(chapters[0]), `${fileNameOf(chapters[0])}.${ext}`)
+    return
+  }
+
+  const { default: JSZip } = await import('jszip')
+  const folderName = `Approbin-export-${new Date().toISOString().slice(0, 10)}`
+  const zip = new JSZip()
+  const folder = zip.folder(folderName)!
+  const used = new Set<string>()
+  for (const chapter of chapters) {
+    const base = fileNameOf(chapter)
+    let name = base
+    for (let n = 2; used.has(name.toLowerCase()); n++) name = `${base} (${n})`
+    used.add(name.toLowerCase())
+    folder.file(`${name}.${ext}`, await build(chapter))
+  }
+  downloadBlob(await zip.generateAsync({ type: 'blob' }), `${folderName}.zip`)
 }
