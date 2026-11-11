@@ -35,6 +35,12 @@ export default function CreateQuestionsChapters() {
           renderExtra={(c) => (
             <p className="text-xs text-slate-400 mt-0.5">
               {c.questionCount} question{c.questionCount > 1 ? 's' : ''}
+              {c.flaggedCount > 0 && (
+                <span className="text-danger-500 font-medium">
+                  {' '}
+                  · {c.flaggedCount} signalée{c.flaggedCount > 1 ? 's' : ''}
+                </span>
+              )}
             </p>
           )}
           renderAction={(c) => (

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { AnimatePresence } from 'motion/react'
-import { Plus, Repeat, Calculator, Table2, Type } from 'lucide-react'
+import { Plus, Repeat, Calculator, Table2, Type, PenTool } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { emptyAccountingData, finalizeAccountingData } from '../../components/AccountingTable'
 import GenericTable, { emptyTableData } from '../../components/GenericTable'
+import DrawingCanvas, { emptyDrawingData } from '../../components/DrawingCanvas'
 import QuestionRow from '../../components/QuestionRow'
 import { useChapter } from '../../hooks/useChapters'
 import {
@@ -12,10 +13,11 @@ import {
   useDeleteQuestion,
   useQuestions,
   useToggleQuestionActive,
+  useToggleQuestionFlagged,
   useToggleQuestionReverse,
   useUpdateQuestion,
 } from '../../hooks/useQuestions'
-import type { AccountingData, QuestionType, TableData } from '../../types/database'
+import type { AccountingData, DrawingData, QuestionType, TableData } from '../../types/database'
 
 export default function CreateQuestionsManager() {
   const { chapterId } = useParams<{ subjectId: string; chapterId: string }>()
@@ -26,18 +28,21 @@ export default function CreateQuestionsManager() {
   const deleteQuestion = useDeleteQuestion(chapterId)
   const toggleActive = useToggleQuestionActive(chapterId)
   const toggleReverse = useToggleQuestionReverse(chapterId)
+  const toggleFlagged = useToggleQuestionFlagged(chapterId)
 
   const [newType, setNewType] = useState<QuestionType>('text')
   const [newQuestion, setNewQuestion] = useState('')
   const [newAnswer, setNewAnswer] = useState('')
   const [newAccounting, setNewAccounting] = useState<AccountingData>(emptyAccountingData())
   const [newTable, setNewTable] = useState<TableData>(emptyTableData())
+  const [newDrawing, setNewDrawing] = useState<DrawingData>(emptyDrawingData())
   const [newCanReverse, setNewCanReverse] = useState(false)
 
   async function handleAdd() {
     if (!newQuestion.trim()) return
     if (newType === 'text' && !newAnswer.trim()) return
     if (newType === 'table' && newTable.headers.every((h) => !h.trim())) return
+    if (newType === 'drawing' && newDrawing.strokes.length === 0) return
 
     await createQuestion.mutateAsync({
       question: newQuestion.trim(),
@@ -45,12 +50,14 @@ export default function CreateQuestionsManager() {
       questionType: newType,
       accountingData: newType === 'accounting' ? finalizeAccountingData(newAccounting) : null,
       tableData: newType === 'table' ? newTable : null,
+      drawingData: newType === 'drawing' ? newDrawing : null,
       canReverse: newType === 'text' && newCanReverse,
     })
     setNewQuestion('')
     setNewAnswer('')
     setNewAccounting(emptyAccountingData())
     setNewTable(emptyTableData())
+    setNewDrawing(emptyDrawingData())
     setNewCanReverse(false)
   }
 
@@ -62,7 +69,7 @@ export default function CreateQuestionsManager() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-sm font-medium text-slate-700">Nouvelle question</p>
             <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
-              {(['text', 'accounting', 'table'] as QuestionType[]).map((t) => (
+              {(['text', 'accounting', 'table', 'drawing'] as QuestionType[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => setNewType(t)}
@@ -73,7 +80,8 @@ export default function CreateQuestionsManager() {
                   {t === 'text' && <Type size={13} />}
                   {t === 'accounting' && <Calculator size={13} />}
                   {t === 'table' && <Table2 size={13} />}
-                  {t === 'text' ? 'Texte' : t === 'accounting' ? 'Comptabilité' : 'Tableau'}
+                  {t === 'drawing' && <PenTool size={13} />}
+                  {t === 'text' ? 'Texte' : t === 'accounting' ? 'Comptabilité' : t === 'table' ? 'Tableau' : 'Schéma'}
                 </button>
               ))}
             </div>
@@ -98,6 +106,7 @@ export default function CreateQuestionsManager() {
           )}
           {newType === 'accounting' && <AccountingTable data={newAccounting} onChange={setNewAccounting} />}
           {newType === 'table' && <GenericTable data={newTable} onChange={setNewTable} />}
+          {newType === 'drawing' && <DrawingCanvas data={newDrawing} onChange={setNewDrawing} />}
 
           <div className="flex items-center gap-2">
             <button
@@ -140,6 +149,7 @@ export default function CreateQuestionsManager() {
                 onUpdate={(input) => updateQuestion.mutateAsync(input)}
                 onToggleActive={(active) => toggleActive.mutate({ id: q.id, active })}
                 onToggleReverse={(canReverse) => toggleReverse.mutate({ id: q.id, canReverse })}
+                onToggleFlagged={(flagged) => toggleFlagged.mutate({ id: q.id, flagged })}
                 onDelete={() => deleteQuestion.mutate(q.id)}
               />
             ))}

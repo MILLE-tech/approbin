@@ -5,10 +5,11 @@ import { CheckCircle2, RotateCcw, ThumbsDown, ThumbsUp, Trophy } from 'lucide-re
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { blankCopyOf as blankAccountingCopyOf, emptyAccountingData } from '../../components/AccountingTable'
 import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
+import DrawingCanvas, { emptyDrawingData } from '../../components/DrawingCanvas'
 import { useExamQuestionPool, type ExamQuestion } from '../../hooks/useExam'
 import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
 import { springs, reducedMotionTransition, questionVariants, revealVariants, completionVariants } from '../../lib/motionTokens'
-import type { AccountingData, TableData } from '../../types/database'
+import type { AccountingData, DrawingData, TableData } from '../../types/database'
 
 interface Draw extends ExamQuestion {
   reversed: boolean
@@ -39,6 +40,7 @@ export default function ExamSession() {
   const [userAnswer, setUserAnswer] = useState('')
   const [accountingAnswer, setAccountingAnswer] = useState<AccountingData>(emptyAccountingData())
   const [tableAnswer, setTableAnswer] = useState<TableData>(emptyTableData())
+  const [drawingAnswer, setDrawingAnswer] = useState<DrawingData>(emptyDrawingData())
   const [revealed, setRevealed] = useState(false)
 
   useEffect(() => {
@@ -69,6 +71,7 @@ export default function ExamSession() {
     setUserAnswer('')
     setAccountingAnswer(emptyAccountingData())
     setTableAnswer(emptyTableData())
+    setDrawingAnswer(emptyDrawingData())
     setRevealed(false)
   }
 
@@ -77,6 +80,7 @@ export default function ExamSession() {
     setUserAnswer('')
     setAccountingAnswer(emptyAccountingData())
     setTableAnswer(emptyTableData())
+    setDrawingAnswer(emptyDrawingData())
     setRevealed(false)
     setIndex((i) => i + 1)
   }
@@ -142,6 +146,7 @@ export default function ExamSession() {
   if (!current) return null
   const isAccounting = current.question_type === 'accounting' && !current.reversed
   const isTable = current.question_type === 'table' && !current.reversed
+  const isDrawing = current.question_type === 'drawing' && !current.reversed
   const prompt = current.reversed ? current.answer : current.question
   const correctAnswerText = current.reversed ? current.question : current.answer
   const qVariants = questionVariants(reducedMotion)
@@ -178,6 +183,8 @@ export default function ExamSession() {
               <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} lockStructure />
             ) : isTable ? (
               <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
+            ) : isDrawing ? (
+              <DrawingCanvas data={drawingAnswer} onChange={setDrawingAnswer} readOnly={revealed} />
             ) : (
               <textarea
                 value={userAnswer}
@@ -221,6 +228,8 @@ export default function ExamSession() {
                       <AccountingTable data={current.accounting_data} readOnly />
                     ) : isTable && current.table_data ? (
                       <GenericTable data={current.table_data} readOnly />
+                    ) : isDrawing ? (
+                      <DrawingCanvas data={current.drawing_data ?? { strokes: [] }} readOnly />
                     ) : (
                       <p className="text-sm text-slate-700">{correctAnswerText}</p>
                     )}

@@ -7,6 +7,7 @@ import {
   useDeleteQuestion,
   useQuestionSearch,
   useToggleQuestionActive,
+  useToggleQuestionFlagged,
   useToggleQuestionReverse,
   useUpdateQuestion,
 } from '../../hooks/useQuestions'
@@ -17,6 +18,7 @@ export default function QuestionsSearch() {
   const updateQuestion = useUpdateQuestion()
   const toggleActive = useToggleQuestionActive()
   const toggleReverse = useToggleQuestionReverse()
+  const toggleFlagged = useToggleQuestionFlagged()
   const deleteQuestion = useDeleteQuestion()
 
   return (
@@ -52,6 +54,7 @@ export default function QuestionsSearch() {
                 onUpdate={(input) => updateQuestion.mutateAsync(input)}
                 onToggleActive={(active) => toggleActive.mutate({ id: q.id, active })}
                 onToggleReverse={(canReverse) => toggleReverse.mutate({ id: q.id, canReverse })}
+                onToggleFlagged={(flagged) => toggleFlagged.mutate({ id: q.id, flagged })}
                 onDelete={() => deleteQuestion.mutate(q.id)}
               />
             ))}

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { computeReviewUpdate } from '../lib/spacedRepetition'
-import type { AccountingData, QuestionType, QuizResult, TableData } from '../types/database'
+import type { AccountingData, DrawingData, QuestionType, QuizResult, TableData } from '../types/database'
 
 export interface DueRow {
   question_id: string
@@ -11,6 +11,8 @@ export interface DueRow {
   question_type: QuestionType
   accounting_data: AccountingData | null
   table_data: TableData | null
+  drawing_data: DrawingData | null
+  flagged: boolean
   can_reverse: boolean
   next_review_at: string
   success_streak: number
@@ -25,7 +27,7 @@ async function fetchDueRows(userId: string, now: string): Promise<DueRow[]> {
     .from('question_reviews')
     .select(
       `question_id, next_review_at, success_streak,
-       question:questions!inner ( id, question, answer, chapter_id, question_type, accounting_data, table_data, can_reverse, active,
+       question:questions!inner ( id, question, answer, chapter_id, question_type, accounting_data, table_data, drawing_data, flagged, can_reverse, active,
          chapter:chapters!inner ( id, name, subject_id,
            subject:subjects!inner ( id, name ) ) )`,
     )
@@ -43,6 +45,8 @@ async function fetchDueRows(userId: string, now: string): Promise<DueRow[]> {
     question_type: row.question.question_type,
     accounting_data: row.question.accounting_data,
     table_data: row.question.table_data,
+    drawing_data: row.question.drawing_data,
+    flagged: row.question.flagged,
     can_reverse: row.question.can_reverse,
     next_review_at: row.next_review_at,
     success_streak: row.success_streak,

@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { m, AnimatePresence } from 'motion/react'
-import { CheckCircle2, Clock, XCircle, Pencil, Power, Repeat, Check, X, Calculator, Table2, Type } from 'lucide-react'
+import { CheckCircle2, Clock, XCircle, Pencil, Power, Repeat, Check, X, Calculator, Table2, Type, CircleAlert, PenTool } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { blankCopyOf as blankAccountingCopyOf, emptyAccountingData, finalizeAccountingData } from '../../components/AccountingTable'
 import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
+import DrawingCanvas, { emptyDrawingData } from '../../components/DrawingCanvas'
 import { useQuizQueue, useSubmitQuizAnswer, type DueRow } from '../../hooks/useQuiz'
-import { useToggleQuestionActive, useToggleQuestionReverse, useUpdateQuestion } from '../../hooks/useQuestions'
+import {
+  useToggleQuestionActive,
+  useToggleQuestionFlagged,
+  useToggleQuestionReverse,
+  useUpdateQuestion,
+} from '../../hooks/useQuestions'
 import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
 import { springs, reducedMotionTransition, questionVariants, revealVariants, completionVariants } from '../../lib/motionTokens'
-import type { AccountingData, QuestionType, QuizResult, TableData } from '../../types/database'
+import type { AccountingData, DrawingData, QuestionType, QuizResult, TableData } from '../../types/database'
 
 type QueueItem = DueRow & { _reversed: boolean }
 
@@ -29,11 +35,13 @@ export default function QuizSession() {
   const updateQuestion = useUpdateQuestion()
   const toggleActive = useToggleQuestionActive()
   const toggleReverse = useToggleQuestionReverse()
+  const toggleFlagged = useToggleQuestionFlagged()
 
   const [queue, setQueue] = useState<QueueItem[] | null>(null)
   const [userAnswer, setUserAnswer] = useState('')
   const [accountingAnswer, setAccountingAnswer] = useState<AccountingData>(emptyAccountingData())
   const [tableAnswer, setTableAnswer] = useState<TableData>(emptyTableData())
+  const [drawingAnswer, setDrawingAnswer] = useState<DrawingData>(emptyDrawingData())
   const [revealed, setRevealed] = useState(false)
   const [answeredCount, setAnsweredCount] = useState(0)
 
@@ -43,6 +51,7 @@ export default function QuizSession() {
   const [editAnswer, setEditAnswer] = useState('')
   const [editAccounting, setEditAccounting] = useState<AccountingData>(emptyAccountingData())
   const [editTable, setEditTable] = useState<TableData>(emptyTableData())
+  const [editDrawing, setEditDrawing] = useState<DrawingData>(emptyDrawingData())
 
   useEffect(() => {
     if (initialQueue && queue === null) {
@@ -69,6 +78,7 @@ export default function QuizSession() {
     setUserAnswer('')
     setAccountingAnswer(emptyAccountingData())
     setTableAnswer(emptyTableData())
+    setDrawingAnswer(emptyDrawingData())
     setRevealed(false)
     setIsEditing(false)
   }
@@ -102,6 +112,7 @@ export default function QuizSession() {
     setEditAnswer(current.answer)
     setEditAccounting(current.accounting_data ?? emptyAccountingData())
     setEditTable(current.table_data ?? emptyTableData())
+    setEditDrawing(current.drawing_data ?? emptyDrawingData())
     setIsEditing(true)
   }
 
@@ -110,6 +121,7 @@ export default function QuizSession() {
     if (editType === 'text' && !editAnswer.trim()) return
 
     const finalizedAccounting = editType === 'accounting' ? finalizeAccountingData(editAccounting) : null
+    const drawingData = editType === 'drawing' ? editDrawing : null
 
     await updateQuestion.mutateAsync({
       id: current.question_id,
@@ -118,6 +130,7 @@ export default function QuizSession() {
       questionType: editType,
       accountingData: finalizedAccounting,
       tableData: editType === 'table' ? editTable : null,
+      drawingData,
       canReverse: current.can_reverse,
     })
 
@@ -131,6 +144,7 @@ export default function QuizSession() {
               question_type: editType,
               accounting_data: finalizedAccounting,
               table_data: editType === 'table' ? editTable : null,
+              drawing_data: drawingData,
             }
           : item,
       ),
@@ -151,6 +165,14 @@ export default function QuizSession() {
     toggleReverse.mutate({ id: current.question_id, canReverse: !current.can_reverse })
     setQueue((prev) =>
       (prev ?? []).map((item) => (item.question_id === current.question_id ? { ...item, can_reverse: !current.can_reverse } : item)),
+    )
+  }
+
+  function handleToggleFlagged() {
+    if (!current) return
+    toggleFlagged.mutate({ id: current.question_id, flagged: !current.flagged })
+    setQueue((prev) =>
+      (prev ?? []).map((item) => (item.question_id === current.question_id ? { ...item, flagged: !current.flagged } : item)),
     )
   }
 
@@ -187,6 +209,7 @@ export default function QuizSession() {
 
   const isAccounting = current.question_type === 'accounting' && !current._reversed
   const isTable = current.question_type === 'table' && !current._reversed
+  const isDrawing = current.question_type === 'drawing' && !current._reversed
   const prompt = current._reversed ? current.answer : current.question
   const correctAnswerText = current._reversed ? current.question : current.answer
   const qVariants = questionVariants(reducedMotion)
@@ -210,49 +233,61 @@ export default function QuizSession() {
             transition={transition}
             className="space-y-4"
           >
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <div className={`border rounded-xl p-5 ${current.flagged ? 'bg-danger-50 border-danger-200' : 'bg-white border-slate-200'}`}>
               <div className="flex items-start justify-between gap-2 mb-1.5">
                 {current._reversed ? (
                   <p className="text-[11px] font-medium text-brand-600 uppercase">Question inversée</p>
                 ) : (
                   <span />
                 )}
-                <AnimatePresence>
-                  {revealed && !isEditing && (
-                    <m.div
-                      className="flex gap-1 shrink-0"
-                      initial={rVariants.initial}
-                      animate={rVariants.animate}
-                      exit={rVariants.exit}
-                      transition={transition}
+                <div className="flex items-center gap-1 shrink-0">
+                  {!isEditing && (
+                    <m.button
+                      onClick={handleToggleFlagged}
+                      whileTap={reducedMotion ? undefined : { scale: 0.9 }}
+                      className={`p-1 ${current.flagged ? 'text-danger-600' : 'text-slate-400 hover:text-danger-600'}`}
+                      title={current.flagged ? 'Retirer le signalement' : 'Signaler cette question'}
                     >
-                      <m.button
-                        onClick={startEdit}
-                        whileTap={reducedMotion ? undefined : { scale: 0.9 }}
-                        className="p-1 text-slate-400 hover:text-brand-600"
-                        title="Modifier"
-                      >
-                        <Pencil size={14} />
-                      </m.button>
-                      <m.button
-                        onClick={handleDeactivate}
-                        whileTap={reducedMotion ? undefined : { scale: 0.9 }}
-                        className="p-1 text-slate-400 hover:text-warning-600"
-                        title="Désactiver"
-                      >
-                        <Power size={14} />
-                      </m.button>
-                      <m.button
-                        onClick={handleToggleReverse}
-                        whileTap={reducedMotion ? undefined : { scale: 0.9 }}
-                        className={`p-1 ${current.can_reverse ? 'text-brand-600' : 'text-slate-400 hover:text-brand-600'}`}
-                        title="Inverser question/réponse 1 fois sur 4"
-                      >
-                        <Repeat size={14} />
-                      </m.button>
-                    </m.div>
+                      <CircleAlert size={14} />
+                    </m.button>
                   )}
-                </AnimatePresence>
+                  <AnimatePresence>
+                    {revealed && !isEditing && (
+                      <m.div
+                        className="flex gap-1 shrink-0"
+                        initial={rVariants.initial}
+                        animate={rVariants.animate}
+                        exit={rVariants.exit}
+                        transition={transition}
+                      >
+                        <m.button
+                          onClick={startEdit}
+                          whileTap={reducedMotion ? undefined : { scale: 0.9 }}
+                          className="p-1 text-slate-400 hover:text-brand-600"
+                          title="Modifier"
+                        >
+                          <Pencil size={14} />
+                        </m.button>
+                        <m.button
+                          onClick={handleDeactivate}
+                          whileTap={reducedMotion ? undefined : { scale: 0.9 }}
+                          className="p-1 text-slate-400 hover:text-warning-600"
+                          title="Désactiver"
+                        >
+                          <Power size={14} />
+                        </m.button>
+                        <m.button
+                          onClick={handleToggleReverse}
+                          whileTap={reducedMotion ? undefined : { scale: 0.9 }}
+                          className={`p-1 ${current.can_reverse ? 'text-brand-600' : 'text-slate-400 hover:text-brand-600'}`}
+                          title="Inverser question/réponse 1 fois sur 4"
+                        >
+                          <Repeat size={14} />
+                        </m.button>
+                      </m.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
 
               {isEditing ? (
@@ -263,7 +298,7 @@ export default function QuizSession() {
                   transition={transition}
                 >
                   <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs w-fit">
-                    {(['text', 'accounting', 'table'] as QuestionType[]).map((t) => (
+                    {(['text', 'accounting', 'table', 'drawing'] as QuestionType[]).map((t) => (
                       <button
                         key={t}
                         onClick={() => setEditType(t)}
@@ -274,7 +309,8 @@ export default function QuizSession() {
                         {t === 'text' && <Type size={13} />}
                         {t === 'accounting' && <Calculator size={13} />}
                         {t === 'table' && <Table2 size={13} />}
-                        {t === 'text' ? 'Texte' : t === 'accounting' ? 'Comptabilité' : 'Tableau'}
+                        {t === 'drawing' && <PenTool size={13} />}
+                        {t === 'text' ? 'Texte' : t === 'accounting' ? 'Comptabilité' : t === 'table' ? 'Tableau' : 'Schéma'}
                       </button>
                     ))}
                   </div>
@@ -294,6 +330,7 @@ export default function QuizSession() {
                   )}
                   {editType === 'accounting' && <AccountingTable data={editAccounting} onChange={setEditAccounting} />}
                   {editType === 'table' && <GenericTable data={editTable} onChange={setEditTable} />}
+                  {editType === 'drawing' && <DrawingCanvas data={editDrawing} onChange={setEditDrawing} />}
                   <div className="flex gap-2">
                     <m.button whileTap={reducedMotion ? undefined : { scale: 0.9 }} onClick={commitEdit} className="text-success-600">
                       <Check size={18} />
@@ -318,6 +355,8 @@ export default function QuizSession() {
                   <AccountingTable data={accountingAnswer} onChange={setAccountingAnswer} readOnly={revealed} lockStructure />
                 ) : isTable ? (
                   <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
+                ) : isDrawing ? (
+                  <DrawingCanvas data={drawingAnswer} onChange={setDrawingAnswer} readOnly={revealed} />
                 ) : (
                   <textarea
                     value={userAnswer}
@@ -358,6 +397,8 @@ export default function QuizSession() {
                           <AccountingTable data={current.accounting_data} readOnly />
                         ) : isTable && current.table_data ? (
                           <GenericTable data={current.table_data} readOnly />
+                        ) : isDrawing ? (
+                          <DrawingCanvas data={current.drawing_data ?? { strokes: [] }} readOnly />
                         ) : (
                           <p className="text-sm text-slate-700">{correctAnswerText}</p>
                         )}

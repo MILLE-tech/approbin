@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { m } from 'motion/react'
-import { Pencil, Trash2, Check, X, Repeat, Power, Calculator, Table2, Type } from 'lucide-react'
+import { Pencil, Trash2, Check, X, Repeat, Power, Calculator, Table2, Type, CircleAlert, PenTool } from 'lucide-react'
 import AccountingTable, { emptyAccountingData, finalizeAccountingData } from './AccountingTable'
 import GenericTable, { emptyTableData } from './GenericTable'
+import DrawingCanvas, { emptyDrawingData } from './DrawingCanvas'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useMotionPreferences } from '../contexts/MotionPreferencesContext'
 import { springs, reducedMotionTransition, listItemVariants } from '../lib/motionTokens'
-import type { AccountingData, Question, QuestionType, TableData } from '../types/database'
+import type { AccountingData, DrawingData, Question, QuestionType, TableData } from '../types/database'
 
 export interface QuestionRowProps {
   question: Question
@@ -19,10 +20,12 @@ export interface QuestionRowProps {
     questionType: QuestionType
     accountingData: AccountingData | null
     tableData: TableData | null
+    drawingData: DrawingData | null
     canReverse: boolean
   }) => Promise<unknown>
   onToggleActive: (active: boolean) => void
   onToggleReverse: (canReverse: boolean) => void
+  onToggleFlagged: (flagged: boolean) => void
   onDelete: () => void
 }
 
@@ -33,6 +36,7 @@ export default function QuestionRow({
   onUpdate,
   onToggleActive,
   onToggleReverse,
+  onToggleFlagged,
   onDelete,
 }: QuestionRowProps) {
   const confirm = useConfirm()
@@ -45,6 +49,7 @@ export default function QuestionRow({
   const [editAnswer, setEditAnswer] = useState('')
   const [editAccounting, setEditAccounting] = useState<AccountingData>(emptyAccountingData())
   const [editTable, setEditTable] = useState<TableData>(emptyTableData())
+  const [editDrawing, setEditDrawing] = useState<DrawingData>(emptyDrawingData())
 
   function startEdit() {
     setEditType(q.question_type)
@@ -52,6 +57,7 @@ export default function QuestionRow({
     setEditAnswer(q.answer)
     setEditAccounting(q.accounting_data ?? emptyAccountingData())
     setEditTable(q.table_data ?? emptyTableData())
+    setEditDrawing(q.drawing_data ?? emptyDrawingData())
     setEditing(true)
   }
 
@@ -65,6 +71,7 @@ export default function QuestionRow({
       questionType: editType,
       accountingData: editType === 'accounting' ? finalizeAccountingData(editAccounting) : null,
       tableData: editType === 'table' ? editTable : null,
+      drawingData: editType === 'drawing' ? editDrawing : null,
       canReverse: q.can_reverse,
     })
     setEditing(false)
@@ -81,6 +88,11 @@ export default function QuestionRow({
         <Table2 size={12} />
         Tableau
       </p>
+    ) : q.question_type === 'drawing' ? (
+      <p className="flex items-center gap-1 text-[11px] font-medium text-brand-600 mb-1">
+        <PenTool size={12} />
+        Schéma
+      </p>
     ) : null
 
   return (
@@ -89,12 +101,14 @@ export default function QuestionRow({
       animate={iVariants.animate}
       exit={iVariants.exit}
       transition={transition}
-      className={`border rounded-xl p-4 ${q.active ? 'bg-white border-slate-200' : 'bg-warning-50 border-warning-200'}`}
+      className={`border rounded-xl p-4 ${
+        q.flagged ? 'bg-danger-50 border-danger-200' : q.active ? 'bg-white border-slate-200' : 'bg-warning-50 border-warning-200'
+      }`}
     >
       {editing ? (
         <div className="space-y-2">
           <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs w-fit">
-            {(['text', 'accounting', 'table'] as QuestionType[]).map((t) => (
+            {(['text', 'accounting', 'table', 'drawing'] as QuestionType[]).map((t) => (
               <m.button
                 key={t}
                 whileTap={reducedMotion ? undefined : { scale: 0.96 }}
@@ -106,7 +120,8 @@ export default function QuestionRow({
                 {t === 'text' && <Type size={13} />}
                 {t === 'accounting' && <Calculator size={13} />}
                 {t === 'table' && <Table2 size={13} />}
-                {t === 'text' ? 'Texte' : t === 'accounting' ? 'Comptabilité' : 'Tableau'}
+                {t === 'drawing' && <PenTool size={13} />}
+                {t === 'text' ? 'Texte' : t === 'accounting' ? 'Comptabilité' : t === 'table' ? 'Tableau' : 'Schéma'}
               </m.button>
             ))}
           </div>
@@ -127,6 +142,7 @@ export default function QuestionRow({
           )}
           {editType === 'accounting' && <AccountingTable data={editAccounting} onChange={setEditAccounting} />}
           {editType === 'table' && <GenericTable data={editTable} onChange={setEditTable} />}
+          {editType === 'drawing' && <DrawingCanvas data={editDrawing} onChange={setEditDrawing} />}
 
           <div className="flex gap-2">
             <m.button whileTap={reducedMotion ? undefined : { scale: 0.9 }} onClick={commitEdit} className="text-success-600">
@@ -161,6 +177,14 @@ export default function QuestionRow({
             {q.question_type === 'text' && <p className="text-sm text-slate-500 mt-1">{q.answer}</p>}
           </div>
           <div className="flex gap-1 shrink-0">
+            <m.button
+              whileTap={reducedMotion ? undefined : { scale: 0.88 }}
+              onClick={() => onToggleFlagged(!q.flagged)}
+              className={`p-1.5 ${q.flagged ? 'text-danger-600' : 'text-slate-400 hover:text-danger-600'}`}
+              title={q.flagged ? 'Retirer le signalement' : 'Signaler cette question'}
+            >
+              <CircleAlert size={15} />
+            </m.button>
             <m.button
               whileTap={reducedMotion ? undefined : { scale: 0.88 }}
               onClick={startEdit}

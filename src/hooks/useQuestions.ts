@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
-import type { AccountingData, Chapter, Question, QuestionType, TableData } from '../types/database'
+import type { AccountingData, Chapter, DrawingData, Question, QuestionType, TableData } from '../types/database'
 
 export interface ChapterWithQuestionCount extends Chapter {
   questionCount: number
+  flaggedCount: number
 }
 
 /** Chapitres d'une matière avec le nombre de questions créées, pour l'écran de validation. */
@@ -26,14 +27,21 @@ export function useChaptersWithQuestionCounts(subjectId: string | undefined) {
 
       const chapterIds = (chapters ?? []).map((c) => c.id)
       const { data: questions, error: qError } = chapterIds.length
-        ? await supabase.from('questions').select('chapter_id').in('chapter_id', chapterIds)
+        ? await supabase.from('questions').select('chapter_id, flagged').in('chapter_id', chapterIds)
         : { data: [], error: null }
       if (qError) throw qError
 
       const counts = new Map<string, number>()
-      for (const q of questions ?? []) counts.set(q.chapter_id, (counts.get(q.chapter_id) ?? 0) + 1)
+      const flaggedCounts = new Map<string, number>()
+      for (const q of questions ?? []) {
+        counts.set(q.chapter_id, (counts.get(q.chapter_id) ?? 0) + 1)
+        if (q.flagged) flaggedCounts.set(q.chapter_id, (flaggedCounts.get(q.chapter_id) ?? 0) + 1)
+      }
 
-      return (chapters ?? []).map((c) => ({ ...c, questionCount: counts.get(c.id) ?? 0 }) as ChapterWithQuestionCount)
+      return (chapters ?? []).map(
+        (c) =>
+          ({ ...c, questionCount: counts.get(c.id) ?? 0, flaggedCount: flaggedCounts.get(c.id) ?? 0 }) as ChapterWithQuestionCount,
+      )
     },
   })
 }
@@ -116,6 +124,7 @@ interface QuestionInput {
   questionType: QuestionType
   accountingData: AccountingData | null
   tableData: TableData | null
+  drawingData: DrawingData | null
   canReverse: boolean
 }
 
@@ -134,7 +143,7 @@ export function useCreateQuestion(chapterId: string | undefined) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ question, answer, questionType, accountingData, tableData, canReverse }: QuestionInput) => {
+    mutationFn: async ({ question, answer, questionType, accountingData, tableData, drawingData, canReverse }: QuestionInput) => {
       if (!user || !chapterId) throw new Error('Contexte invalide')
       const { data, error } = await supabase
         .from('questions')
@@ -146,6 +155,7 @@ export function useCreateQuestion(chapterId: string | undefined) {
           question_type: questionType,
           accounting_data: accountingData,
           table_data: tableData,
+          drawing_data: drawingData,
           can_reverse: canReverse,
           active: true,
         })
@@ -173,7 +183,7 @@ export function useUpdateQuestion(chapterId?: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, question, answer, questionType, accountingData, tableData }: QuestionInput & { id: string }) => {
+    mutationFn: async ({ id, question, answer, questionType, accountingData, tableData, drawingData }: QuestionInput & { id: string }) => {
       const { error } = await supabase
         .from('questions')
         .update({
@@ -182,6 +192,7 @@ export function useUpdateQuestion(chapterId?: string) {
           question_type: questionType,
           accounting_data: accountingData,
           table_data: tableData,
+          drawing_data: drawingData,
         })
         .eq('id', id)
       if (error) throw error
@@ -211,6 +222,21 @@ export function useToggleQuestionReverse(chapterId?: string) {
       if (error) throw error
     },
     onSuccess: () => invalidateQuestionCaches(queryClient, chapterId),
+  })
+}
+
+export function useToggleQuestionFlagged(chapterId?: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, flagged }: { id: string; flagged: boolean }) => {
+      const { error } = await supabase.from('questions').update({ flagged }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      invalidateQuestionCaches(queryClient, chapterId)
+      queryClient.invalidateQueries({ queryKey: ['chapters-question-counts'] })
+    },
   })
 }
 

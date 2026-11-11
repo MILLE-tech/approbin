@@ -17,6 +17,7 @@ function downloadBlob(blob: Blob, fileName: string) {
 function questionTypeLabel(type: string) {
   if (type === 'accounting') return ' (écriture comptable)'
   if (type === 'table') return ' (tableau)'
+  if (type === 'drawing') return ' (schéma)'
   return ''
 }
 
@@ -52,7 +53,7 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
   function writeAccountingTable(data: AccountingData) {
     doc.setFont('courier', 'normal')
     doc.setFontSize(9)
-    const header = ['Débit', 'Crédit', 'Libellé', 'Mt débit', 'Mt crédit']
+    const header = ['Débit', 'Crédit', 'Libellé', 'Mt débit', 'Mt crédit', 'Solder']
       .map((h) => h.padEnd(14))
       .join('')
     writeLines(header, { size: 9, font: 'courier', style: 'bold', gap: 12 })
@@ -64,6 +65,7 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
         row.libelle,
         formatAmount(row.montantDebit),
         formatAmount(row.montantCredit),
+        !isLibelle && row.solder ? 'PS' : '',
       ]
         .map((v) => (v || '').toString().padEnd(14))
         .join('')
@@ -112,6 +114,8 @@ export async function exportToPdf(chapters: ExportChapterContent[], fileName: st
           writeAccountingTable(q.accounting_data)
         } else if (q.question_type === 'table' && q.table_data) {
           writeGenericTable(q.table_data)
+        } else if (q.question_type === 'drawing') {
+          writeLines('(schéma dessiné — disponible dans l\'application)', { size: 9, gap: 13 })
         } else {
           writeLines(`R : ${q.answer}`, { size: 10, gap: 13 })
         }
@@ -140,10 +144,10 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
 
   function accountingTableToDocx(data: AccountingData) {
     const headerRow = new TableRow({
-      children: ['N° débit', 'N° crédit', 'Libellé', 'Montant débit', 'Montant crédit'].map(
+      children: ['N° débit', 'N° crédit', 'Libellé', 'Montant débit', 'Montant crédit', 'Solder'].map(
         (text) =>
           new TableCell({
-            width: { size: 20, type: WidthType.PERCENTAGE },
+            width: { size: 100 / 6, type: WidthType.PERCENTAGE },
             children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })],
           }),
       ),
@@ -156,12 +160,13 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
         row.libelle,
         formatAmount(row.montantDebit),
         formatAmount(row.montantCredit),
+        !isLibelle && row.solder ? 'PS' : '',
       ]
       return new TableRow({
         children: cells.map(
           (text) =>
             new TableCell({
-              width: { size: 20, type: WidthType.PERCENTAGE },
+              width: { size: 100 / 6, type: WidthType.PERCENTAGE },
               children: [isLibelle ? new Paragraph({ children: [new TextRun({ text, bold: true })] }) : new Paragraph(text || '')],
             }),
         ),
@@ -237,6 +242,8 @@ export async function exportToWord(chapters: ExportChapterContent[], fileName: s
           children.push(...accountingTableToDocx(q.accounting_data))
         } else if (q.question_type === 'table' && q.table_data) {
           children.push(...genericTableToDocx(q.table_data))
+        } else if (q.question_type === 'drawing') {
+          children.push(new Paragraph("(schéma dessiné — disponible dans l'application)"))
         } else {
           children.push(new Paragraph(`R : ${q.answer}`))
         }
