@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { Eraser, Eye, Minus, MousePointer2, Pencil, Type, Undo2 } from 'lucide-react'
+import { Eraser, Eye, Magnet, Minus, MousePointer2, Pencil, Trash2, Type, Undo2 } from 'lucide-react'
 import type { DrawingData, DrawingPoint, DrawingStroke } from '../types/database'
 
 export function emptyDrawingData(): DrawingData {
@@ -16,7 +16,7 @@ export function guideOf(data: DrawingData | null): DrawingData {
   return { strokes: (data?.strokes ?? []).filter((s) => s.color === GUIDE_COLOR) }
 }
 
-type Tool = 'move' | 'free' | 'line' | 'text'
+type Tool = 'move' | 'free' | 'line' | 'text' | 'erase'
 
 const VIEW_WIDTH = 1000
 const VIEW_HEIGHT = 560
@@ -91,6 +91,7 @@ const TOOLS: { id: Tool; label: string; Icon: typeof Pencil }[] = [
   { id: 'free', label: 'Crayon', Icon: Pencil },
   { id: 'line', label: 'Trait droit', Icon: Minus },
   { id: 'text', label: 'Texte', Icon: Type },
+  { id: 'erase', label: 'Gomme', Icon: Eraser },
 ]
 
 export default function DrawingCanvas({ data, onChange, readOnly = false, background }: DrawingCanvasProps) {
@@ -106,6 +107,9 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
   const [textDraft, setTextDraftState] = useState<{ point: DrawingPoint; value: string } | null>(null)
   const movingRef = useRef<{ index: number; origin: DrawingPoint; original: DrawingStroke; current: DrawingStroke } | null>(null)
   const [moving, setMovingState] = useState<{ index: number; stroke: DrawingStroke } | null>(null)
+  // Traits restants pendant un passage de gomme (le prop `data` peut ne pas être encore à jour entre deux mouvements).
+  const erasingRef = useRef<DrawingStroke[] | null>(null)
+  const [snapAxis, setSnapAxis] = useState(false)
   const colors = background ? COLORS : [...COLORS, GUIDE_COLOR]
 
   function setDraft(next: DrawingStroke | null) {
@@ -149,6 +153,12 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
   function handlePointerDown(e: ReactPointerEvent<SVGSVGElement>) {
     if (!editable) return
     const p = toVirtualPoint(e)
+    if (tool === 'erase') {
+      e.currentTarget.setPointerCapture(e.pointerId)
+      erasingRef.current = data.strokes
+      eraseAt(p)
+      return
+    }
     if (tool === 'move') {
       let index = -1
       for (let i = data.strokes.length - 1; i >= 0; i--) {
@@ -174,7 +184,24 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
     setDraft(tool === 'line' ? { kind: 'line', color, points: [p, p] } : { color, points: [p] })
   }
 
+  function eraseAt(p: DrawingPoint) {
+    const strokes = erasingRef.current
+    if (!strokes) return
+    const remaining = strokes.filter((s) => !hitsStroke(s, p))
+    if (remaining.length === strokes.length) return
+    erasingRef.current = remaining
+    onChange?.({ strokes: remaining })
+  }
+
+  function snapToAxis(start: DrawingPoint, p: DrawingPoint): DrawingPoint {
+    return Math.abs(p.x - start.x) >= Math.abs(p.y - start.y) ? { x: p.x, y: start.y } : { x: start.x, y: p.y }
+  }
+
   function handlePointerMove(e: ReactPointerEvent<SVGSVGElement>) {
+    if (erasingRef.current) {
+      eraseAt(toVirtualPoint(e))
+      return
+    }
     const mv = movingRef.current
     if (mv) {
       const p = toVirtualPoint(e)
@@ -185,10 +212,19 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
     const prev = draftRef.current
     if (!prev) return
     const p = toVirtualPoint(e)
-    setDraft(prev.kind === 'line' ? { ...prev, points: [prev.points[0], p] } : { ...prev, points: [...prev.points, p] })
+    if (prev.kind === 'line') {
+      const start = prev.points[0]
+      setDraft({ ...prev, points: [start, snapAxis ? snapToAxis(start, p) : p] })
+    } else {
+      setDraft({ ...prev, points: [...prev.points, p] })
+    }
   }
 
   function handlePointerUp() {
+    if (erasingRef.current) {
+      erasingRef.current = null
+      return
+    }
     const mv = movingRef.current
     if (mv) {
       movingRef.current = null
@@ -237,6 +273,20 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
               <span className="hidden sm:inline">{label}</span>
             </button>
           ))}
+          {tool === 'line' && (
+            <button
+              type="button"
+              onClick={() => setSnapAxis((v) => !v)}
+              aria-pressed={snapAxis}
+              title="Forcer le trait à l'horizontale ou à la verticale"
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs border ${
+                snapAxis ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <Magnet size={13} />
+              <span>H / V</span>
+            </button>
+          )}
           <span className="w-px h-5 bg-slate-200 mx-1" />
           {colors.map((c) => (
             <button
@@ -262,7 +312,11 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
           ref={svgRef}
           viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
           className={`w-full block bg-white ${
-            editable ? `touch-none ${tool === 'text' ? 'cursor-text' : tool === 'move' ? 'cursor-move' : 'cursor-crosshair'}` : ''
+            editable
+              ? `touch-none ${
+                  tool === 'text' ? 'cursor-text' : tool === 'move' ? 'cursor-move' : tool === 'erase' ? 'cursor-pointer' : 'cursor-crosshair'
+                }`
+              : ''
           }`}
           style={{ aspectRatio: `${VIEW_WIDTH} / ${VIEW_HEIGHT}` }}
           onPointerDown={handlePointerDown}
@@ -318,7 +372,7 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
             disabled={data.strokes.length === 0}
             className="flex items-center justify-center gap-1.5 text-xs text-danger-600 hover:text-danger-700 px-3 py-2 flex-1 border-l border-slate-100 disabled:opacity-40 disabled:hover:text-danger-600"
           >
-            <Eraser size={14} />
+            <Trash2 size={14} />
             Tout effacer
           </button>
         </div>
