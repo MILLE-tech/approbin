@@ -5,7 +5,7 @@ import { CheckCircle2, Clock, XCircle, Pencil, Power, Repeat, Check, X, Calculat
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { blankCopyOf as blankAccountingCopyOf, emptyAccountingData, finalizeAccountingData } from '../../components/AccountingTable'
 import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
-import DrawingCanvas, { emptyDrawingData } from '../../components/DrawingCanvas'
+import DrawingCanvas, { emptyDrawingData, guideOf } from '../../components/DrawingCanvas'
 import { useQuizQueue, useSubmitQuizAnswer, type DueRow } from '../../hooks/useQuiz'
 import {
   useToggleQuestionActive,
@@ -356,7 +356,12 @@ export default function QuizSession() {
                 ) : isTable ? (
                   <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
                 ) : isDrawing ? (
-                  <DrawingCanvas data={drawingAnswer} onChange={setDrawingAnswer} readOnly={revealed} />
+                  <DrawingCanvas
+                    data={drawingAnswer}
+                    onChange={setDrawingAnswer}
+                    readOnly={revealed}
+                    background={guideOf(current.drawing_data)}
+                  />
                 ) : (
                   <textarea
                     value={userAnswer}

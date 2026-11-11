@@ -5,7 +5,7 @@ import { CheckCircle2, RotateCcw, ThumbsDown, ThumbsUp, Trophy } from 'lucide-re
 import PageHeader from '../../components/PageHeader'
 import AccountingTable, { blankCopyOf as blankAccountingCopyOf, emptyAccountingData } from '../../components/AccountingTable'
 import GenericTable, { blankCopyOf, emptyTableData } from '../../components/GenericTable'
-import DrawingCanvas, { emptyDrawingData } from '../../components/DrawingCanvas'
+import DrawingCanvas, { emptyDrawingData, guideOf } from '../../components/DrawingCanvas'
 import { useExamQuestionPool, type ExamQuestion } from '../../hooks/useExam'
 import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
 import { springs, reducedMotionTransition, questionVariants, revealVariants, completionVariants } from '../../lib/motionTokens'
@@ -184,7 +184,12 @@ export default function ExamSession() {
             ) : isTable ? (
               <GenericTable data={tableAnswer} onChange={setTableAnswer} readOnly={revealed} lockStructure />
             ) : isDrawing ? (
-              <DrawingCanvas data={drawingAnswer} onChange={setDrawingAnswer} readOnly={revealed} />
+              <DrawingCanvas
+                data={drawingAnswer}
+                onChange={setDrawingAnswer}
+                readOnly={revealed}
+                background={guideOf(current.drawing_data)}
+              />
             ) : (
               <textarea
                 value={userAnswer}

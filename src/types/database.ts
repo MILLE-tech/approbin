@@ -34,6 +34,11 @@ export interface DrawingPoint {
 }
 
 export interface DrawingStroke {
+  /** Absent = trait à main levée. 'line' = 2 points, 'text' = 1 point (position) + `text`. */
+  kind?: 'free' | 'line' | 'text'
+  /** Absent = couleur par défaut (foncé). */
+  color?: string
+  text?: string
   points: DrawingPoint[]
 }
 
