@@ -62,6 +62,9 @@ export interface Chapter {
   position: number
   created_at: string
   questions_ready: boolean
+  exported_at: string | null
+  /** Mis à jour en base (trigger) à chaque modification d'une question ou d'une fiche du chapitre. */
+  content_changed_at: string | null
 }
 
 export interface Sheet {

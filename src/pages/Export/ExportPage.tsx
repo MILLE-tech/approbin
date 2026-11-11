@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { m, AnimatePresence } from 'motion/react'
 import { Download, FileText, FileType2 } from 'lucide-react'
 import PageHeader from '../../components/PageHeader'
-import { useExportOverview, useExportContent } from '../../hooks/useExport'
+import { useExportOverview, useExportContent, useMarkChaptersExported } from '../../hooks/useExport'
 import { exportChapters } from '../../lib/exportDocument'
 import { useMotionPreferences } from '../../contexts/MotionPreferencesContext'
 import { springs, reducedMotionTransition, revealVariants } from '../../lib/motionTokens'
@@ -17,8 +17,7 @@ export default function ExportPage() {
   const [format, setFormat] = useState<Format>('pdf')
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Coche ✅ à côté des chapitres déjà exportés pendant cette session (non persisté).
-  const [exportedChapterIds, setExportedChapterIds] = useState<Set<string>>(new Set())
+  const markExported = useMarkChaptersExported()
   const { reducedMotion } = useMotionPreferences()
   const transition = reducedMotion ? reducedMotionTransition : springs.default
   const rVariants = revealVariants(reducedMotion)
@@ -50,7 +49,7 @@ export default function ExportPage() {
         return
       }
       await exportChapters(chapters, format)
-      setExportedChapterIds((prev) => new Set([...prev, ...chapters.map((c) => c.id)]))
+      await markExported.mutateAsync(chapters.map((c) => c.id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Échec de l'export.")
     } finally {
@@ -146,7 +145,15 @@ export default function ExportPage() {
                             ({chapter.sheetsCount} fiche{chapter.sheetsCount > 1 ? 's' : ''}, {chapter.questionsCount}{' '}
                             question{chapter.questionsCount > 1 ? 's' : ''})
                           </span>
-                          {exportedChapterIds.has(chapter.id) && <span title="Déjà exporté">✅</span>}
+                          {chapter.exportStatus === 'exported' && <span title="Déjà exporté, à jour">✅</span>}
+                          {chapter.exportStatus === 'stale' && (
+                            <span
+                              title="Modifié depuis le dernier export"
+                              className="text-[11px] font-medium text-warning-600 bg-warning-50 border border-warning-200 rounded-full px-2 py-0.5"
+                            >
+                              À réexporter
+                            </span>
+                          )}
                         </label>
                       ))}
                     </div>

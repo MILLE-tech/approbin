@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import type { Question, Sheet } from '../types/database'
@@ -9,6 +9,14 @@ export interface ExportOverviewChapter {
   sheetsCount: number
   questionsCount: number
   questionsReady: boolean
+  /** 'stale' = contenu modifié depuis le dernier export. */
+  exportStatus: 'never' | 'exported' | 'stale'
+}
+
+function exportStatusOf(exportedAt: string | null, contentChangedAt: string | null): ExportOverviewChapter['exportStatus'] {
+  if (!exportedAt) return 'never'
+  if (contentChangedAt && new Date(contentChangedAt) > new Date(exportedAt)) return 'stale'
+  return 'exported'
 }
 
 export interface ExportOverviewSubject {
@@ -24,10 +32,16 @@ export function useExportOverview() {
   return useQuery({
     queryKey: ['export-overview', user?.id],
     enabled: !!user,
+    // Toujours relire le statut d'export : une question a pu être modifiée juste avant.
+    staleTime: 0,
     queryFn: async (): Promise<ExportOverviewSubject[]> => {
       const [{ data: subjects, error: subjectsError }, { data: chapters, error: chaptersError }] = await Promise.all([
         supabase.from('subjects').select('id, name').eq('user_id', user!.id).order('position'),
-        supabase.from('chapters').select('id, name, subject_id, questions_ready').eq('user_id', user!.id).order('position'),
+        supabase
+          .from('chapters')
+          .select('id, name, subject_id, questions_ready, exported_at, content_changed_at')
+          .eq('user_id', user!.id)
+          .order('position'),
       ])
       if (subjectsError) throw subjectsError
       if (chaptersError) throw chaptersError
@@ -61,6 +75,7 @@ export function useExportOverview() {
             sheetsCount: sheetsCount.get(c.id) ?? 0,
             questionsCount: questionsCount.get(c.id) ?? 0,
             questionsReady: c.questions_ready,
+            exportStatus: exportStatusOf(c.exported_at, c.content_changed_at),
           })),
       }))
     },
@@ -115,5 +130,19 @@ export function useExportContent(
         questions: ((questions ?? []) as Question[]).filter((q) => q.chapter_id === chapter.id),
       }))
     },
+  })
+}
+
+/** Enregistre en base que ces chapitres viennent d'être exportés (horodatage serveur). */
+export function useMarkChaptersExported() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (chapterIds: string[]) => {
+      const { error } = await supabase.rpc('mark_chapters_exported', { chapter_ids: chapterIds })
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['export-overview', user?.id] }),
   })
 }
