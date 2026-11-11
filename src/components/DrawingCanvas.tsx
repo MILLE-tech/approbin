@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { Eraser, Eye, Minus, Pencil, Type, Undo2 } from 'lucide-react'
+import { Eraser, Eye, Minus, MousePointer2, Pencil, Type, Undo2 } from 'lucide-react'
 import type { DrawingData, DrawingPoint, DrawingStroke } from '../types/database'
 
 export function emptyDrawingData(): DrawingData {
@@ -16,11 +16,38 @@ export function guideOf(data: DrawingData | null): DrawingData {
   return { strokes: (data?.strokes ?? []).filter((s) => s.color === GUIDE_COLOR) }
 }
 
-type Tool = 'free' | 'line' | 'text'
+type Tool = 'move' | 'free' | 'line' | 'text'
 
 const VIEW_WIDTH = 1000
 const VIEW_HEIGHT = 560
 const TEXT_SIZE = 30
+const HIT_TOLERANCE = 16
+
+function distanceToSegment(p: DrawingPoint, a: DrawingPoint, b: DrawingPoint): number {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lengthSq = dx * dx + dy * dy
+  const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq))
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+}
+
+function hitsStroke(stroke: DrawingStroke, p: DrawingPoint): boolean {
+  if (stroke.kind === 'text') {
+    const origin = stroke.points[0]
+    if (!origin) return false
+    // Largeur approximative : le SVG ne mesure pas le texte sans le rendre.
+    const width = (stroke.text?.length ?? 0) * TEXT_SIZE * 0.6
+    return p.x >= origin.x - 6 && p.x <= origin.x + width + 6 && Math.abs(p.y - origin.y) <= TEXT_SIZE * 0.7
+  }
+  for (let i = 1; i < stroke.points.length; i++) {
+    if (distanceToSegment(p, stroke.points[i - 1], stroke.points[i]) <= HIT_TOLERANCE) return true
+  }
+  return false
+}
+
+function translate(stroke: DrawingStroke, dx: number, dy: number): DrawingStroke {
+  return { ...stroke, points: stroke.points.map((pt) => ({ x: pt.x + dx, y: pt.y + dy })) }
+}
 
 function strokeToPath(points: DrawingPoint[]): string {
   if (points.length === 0) return ''
@@ -60,6 +87,7 @@ interface DrawingCanvasProps {
 }
 
 const TOOLS: { id: Tool; label: string; Icon: typeof Pencil }[] = [
+  { id: 'move', label: 'Déplacer', Icon: MousePointer2 },
   { id: 'free', label: 'Crayon', Icon: Pencil },
   { id: 'line', label: 'Trait droit', Icon: Minus },
   { id: 'text', label: 'Texte', Icon: Type },
@@ -76,6 +104,8 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
   const [draft, setDraftState] = useState<DrawingStroke | null>(null)
   const textDraftRef = useRef<{ point: DrawingPoint; value: string } | null>(null)
   const [textDraft, setTextDraftState] = useState<{ point: DrawingPoint; value: string } | null>(null)
+  const movingRef = useRef<{ index: number; origin: DrawingPoint; original: DrawingStroke; current: DrawingStroke } | null>(null)
+  const [moving, setMovingState] = useState<{ index: number; stroke: DrawingStroke } | null>(null)
   const colors = background ? COLORS : [...COLORS, GUIDE_COLOR]
 
   function setDraft(next: DrawingStroke | null) {
@@ -119,6 +149,21 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
   function handlePointerDown(e: ReactPointerEvent<SVGSVGElement>) {
     if (!editable) return
     const p = toVirtualPoint(e)
+    if (tool === 'move') {
+      let index = -1
+      for (let i = data.strokes.length - 1; i >= 0; i--) {
+        if (hitsStroke(data.strokes[i], p)) {
+          index = i
+          break
+        }
+      }
+      if (index === -1) return
+      e.currentTarget.setPointerCapture(e.pointerId)
+      const original = data.strokes[index]
+      movingRef.current = { index, origin: p, original, current: original }
+      setMovingState({ index, stroke: original })
+      return
+    }
     if (tool === 'text') {
       e.preventDefault()
       if (textDraftRef.current) commitText()
@@ -130,10 +175,30 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
   }
 
   function handlePointerMove(e: ReactPointerEvent<SVGSVGElement>) {
+    const mv = movingRef.current
+    if (mv) {
+      const p = toVirtualPoint(e)
+      mv.current = translate(mv.original, p.x - mv.origin.x, p.y - mv.origin.y)
+      setMovingState({ index: mv.index, stroke: mv.current })
+      return
+    }
     const prev = draftRef.current
     if (!prev) return
     const p = toVirtualPoint(e)
     setDraft(prev.kind === 'line' ? { ...prev, points: [prev.points[0], p] } : { ...prev, points: [...prev.points, p] })
+  }
+
+  function handlePointerUp() {
+    const mv = movingRef.current
+    if (mv) {
+      movingRef.current = null
+      setMovingState(null)
+      if (mv.current !== mv.original) {
+        onChange?.({ strokes: data.strokes.map((s, i) => (i === mv.index ? mv.current : s)) })
+      }
+      return
+    }
+    commitStroke()
   }
 
   function commitStroke() {
@@ -196,16 +261,18 @@ export default function DrawingCanvas({ data, onChange, readOnly = false, backgr
         <svg
           ref={svgRef}
           viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
-          className={`w-full block bg-white ${editable ? `touch-none ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'}` : ''}`}
+          className={`w-full block bg-white ${
+            editable ? `touch-none ${tool === 'text' ? 'cursor-text' : tool === 'move' ? 'cursor-move' : 'cursor-crosshair'}` : ''
+          }`}
           style={{ aspectRatio: `${VIEW_WIDTH} / ${VIEW_HEIGHT}` }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
-          onPointerUp={commitStroke}
-          onPointerLeave={commitStroke}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
         >
           {background?.strokes.map((stroke, i) => <StrokeShape key={`bg-${i}`} stroke={stroke} />)}
           {data.strokes.map((stroke, i) => (
-            <StrokeShape key={i} stroke={stroke} />
+            <StrokeShape key={i} stroke={moving?.index === i ? moving.stroke : stroke} />
           ))}
           {draft && <StrokeShape stroke={draft} />}
           {data.strokes.length === 0 && !background?.strokes.length && !draft && !editable && (
