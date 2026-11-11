@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
-import type { AccountingData, Chapter, DrawingData, Question, QuestionType, TableData } from '../types/database'
+import type { AccountingData, Chapter, DrawingData, Question, QuestionType, Subject, TableData } from '../types/database'
 
 export interface ChapterWithQuestionCount extends Chapter {
   questionCount: number
@@ -41,6 +41,54 @@ export function useChaptersWithQuestionCounts(subjectId: string | undefined) {
       return (chapters ?? []).map(
         (c) =>
           ({ ...c, questionCount: counts.get(c.id) ?? 0, flaggedCount: flaggedCounts.get(c.id) ?? 0 }) as ChapterWithQuestionCount,
+      )
+    },
+  })
+}
+
+export interface SubjectWithFlaggedCount extends Subject {
+  flaggedCount: number
+}
+
+/** Matières avec le nombre de questions signalées, pour l'écran de création de questions. */
+export function useSubjectsWithFlaggedCounts() {
+  const { user } = useAuth()
+
+  return useQuery({
+    queryKey: ['subjects-flagged-counts', user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<SubjectWithFlaggedCount[]> => {
+      const { data: subjects, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: true })
+      if (error) throw error
+
+      const { data: chapters, error: chError } = await supabase
+        .from('chapters')
+        .select('id, subject_id')
+        .eq('user_id', user!.id)
+      if (chError) throw chError
+
+      const chapterToSubject = new Map<string, string>()
+      for (const c of chapters ?? []) chapterToSubject.set(c.id, c.subject_id)
+
+      const chapterIds = (chapters ?? []).map((c) => c.id)
+      const { data: questions, error: qError } = chapterIds.length
+        ? await supabase.from('questions').select('chapter_id').in('chapter_id', chapterIds).eq('flagged', true)
+        : { data: [], error: null }
+      if (qError) throw qError
+
+      const flaggedCounts = new Map<string, number>()
+      for (const q of questions ?? []) {
+        const subjectId = chapterToSubject.get(q.chapter_id)
+        if (subjectId) flaggedCounts.set(subjectId, (flaggedCounts.get(subjectId) ?? 0) + 1)
+      }
+
+      return (subjects ?? []).map(
+        (s) => ({ ...s, flaggedCount: flaggedCounts.get(s.id) ?? 0 }) as SubjectWithFlaggedCount,
       )
     },
   })
@@ -236,6 +284,7 @@ export function useToggleQuestionFlagged(chapterId?: string) {
     onSuccess: () => {
       invalidateQuestionCaches(queryClient, chapterId)
       queryClient.invalidateQueries({ queryKey: ['chapters-question-counts'] })
+      queryClient.invalidateQueries({ queryKey: ['subjects-flagged-counts'] })
     },
   })
 }

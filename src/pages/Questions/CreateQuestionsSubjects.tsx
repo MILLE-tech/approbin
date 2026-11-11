@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../../components/PageHeader'
 import FolderGrid from '../../components/FolderGrid'
-import { useCreateSubject, useDeleteSubject, useRenameSubject, useSubjects } from '../../hooks/useSubjects'
+import { useCreateSubject, useDeleteSubject, useRenameSubject } from '../../hooks/useSubjects'
+import { useSubjectsWithFlaggedCounts, type SubjectWithFlaggedCount } from '../../hooks/useQuestions'
 
 export default function CreateQuestionsSubjects() {
   const navigate = useNavigate()
-  const { data: subjects, isLoading } = useSubjects()
+  const { data: subjects, isLoading } = useSubjectsWithFlaggedCounts()
   const createSubject = useCreateSubject()
   const renameSubject = useRenameSubject()
   const deleteSubject = useDeleteSubject()
@@ -14,7 +15,7 @@ export default function CreateQuestionsSubjects() {
     <div>
       <PageHeader title="Créer des questions" subtitle="Choisissez une matière" back />
       <div className="p-5">
-        <FolderGrid
+        <FolderGrid<SubjectWithFlaggedCount>
           items={subjects ?? []}
           isLoading={isLoading}
           onOpen={(id) => navigate(`/questions/creer/${id}`)}
@@ -23,6 +24,13 @@ export default function CreateQuestionsSubjects() {
           onDelete={(id) => deleteSubject.mutateAsync(id)}
           emptyLabel="Aucune matière pour le moment."
           newLabel="Nouvelle matière"
+          renderExtra={(s) =>
+            s.flaggedCount > 0 && (
+              <p className="text-xs text-danger-500 font-medium mt-0.5">
+                {s.flaggedCount} signalée{s.flaggedCount > 1 ? 's' : ''}
+              </p>
+            )
+          }
         />
       </div>
     </div>
