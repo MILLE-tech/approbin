@@ -35,16 +35,29 @@ export function useExportOverview() {
     // Toujours relire le statut d'export : une question a pu être modifiée juste avant.
     staleTime: 0,
     queryFn: async (): Promise<ExportOverviewSubject[]> => {
-      const [{ data: subjects, error: subjectsError }, { data: chapters, error: chaptersError }] = await Promise.all([
+      const chaptersQuery = (columns: string) =>
+        supabase.from('chapters').select(columns).eq('user_id', user!.id).order('position')
+
+      const [{ data: subjects, error: subjectsError }, chaptersResult] = await Promise.all([
         supabase.from('subjects').select('id, name').eq('user_id', user!.id).order('position'),
-        supabase
-          .from('chapters')
-          .select('id, name, subject_id, questions_ready, exported_at, content_changed_at')
-          .eq('user_id', user!.id)
-          .order('position'),
+        chaptersQuery('id, name, subject_id, questions_ready, exported_at, content_changed_at'),
       ])
       if (subjectsError) throw subjectsError
+
+      let { data: chaptersData, error: chaptersError } = chaptersResult
+      // 42703 = colonne inexistante : migration 0008 pas encore appliquée, on affiche quand même la page sans statut d'export.
+      if (chaptersError?.code === '42703') {
+        ;({ data: chaptersData, error: chaptersError } = await chaptersQuery('id, name, subject_id, questions_ready'))
+      }
       if (chaptersError) throw chaptersError
+      const chapters = (chaptersData ?? []) as unknown as {
+        id: string
+        name: string
+        subject_id: string
+        questions_ready: boolean
+        exported_at?: string | null
+        content_changed_at?: string | null
+      }[]
 
       const chapterIds = (chapters ?? []).map((c) => c.id)
 
@@ -75,7 +88,7 @@ export function useExportOverview() {
             sheetsCount: sheetsCount.get(c.id) ?? 0,
             questionsCount: questionsCount.get(c.id) ?? 0,
             questionsReady: c.questions_ready,
-            exportStatus: exportStatusOf(c.exported_at, c.content_changed_at),
+            exportStatus: exportStatusOf(c.exported_at ?? null, c.content_changed_at ?? null),
           })),
       }))
     },

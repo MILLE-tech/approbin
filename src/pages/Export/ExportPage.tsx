@@ -10,7 +10,7 @@ import { springs, reducedMotionTransition, revealVariants } from '../../lib/moti
 type Format = 'pdf' | 'word'
 
 export default function ExportPage() {
-  const { data: overview, isLoading } = useExportOverview()
+  const { data: overview, isLoading, error: overviewError } = useExportOverview()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [includeSheets, setIncludeSheets] = useState(true)
   const [includeQuestions, setIncludeQuestions] = useState(true)
@@ -49,7 +49,8 @@ export default function ExportPage() {
         return
       }
       await exportChapters(chapters, format)
-      await markExported.mutateAsync(chapters.map((c) => c.id))
+      // Le fichier est déjà téléchargé : un échec ici ne doit pas faire croire que l'export a échoué.
+      markExported.mutate(chapters.map((c) => c.id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Échec de l'export.")
     } finally {
@@ -64,7 +65,12 @@ export default function ExportPage() {
       <PageHeader title="Export" subtitle="Gardez une trace de vos fiches et questions" />
       <div className="p-5 max-w-2xl space-y-5">
         {isLoading && <p className="text-sm text-slate-400">Chargement…</p>}
-        {!isLoading && !hasContent && <p className="text-sm text-slate-400">Rien à exporter pour le moment.</p>}
+        {overviewError && (
+          <p className="text-sm text-danger-600">
+            Impossible de charger vos chapitres : {(overviewError as { message?: string }).message ?? String(overviewError)}
+          </p>
+        )}
+        {!isLoading && !overviewError && !hasContent && <p className="text-sm text-slate-400">Rien à exporter pour le moment.</p>}
 
         {hasContent && (
           <>
