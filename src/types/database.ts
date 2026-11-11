@@ -1,7 +1,7 @@
 export type ReviewStatus = 'nouveau' | 'reussi' | 'apprentissage' | 'echec'
 export type QuizResult = 'reussi' | 'apprentissage' | 'echec'
 export type SheetSourceType = 'manual' | 'import'
-export type QuestionType = 'text' | 'accounting' | 'table'
+export type QuestionType = 'text' | 'accounting' | 'table' | 'drawing'
 
 export interface AccountingRow {
   /** 'libelle' = ligne de rupture nommant une écriture, montants = sous-total depuis la précédente. Absent = ligne normale. */
@@ -11,6 +11,8 @@ export interface AccountingRow {
   libelle: string
   montantDebit: string
   montantCredit: string
+  /** Marque la ligne "Pour solde" (affichée "PS"). */
+  solder?: boolean
 }
 
 export interface AccountingData {
@@ -22,6 +24,21 @@ export interface TableData {
   /** Libellés de ligne (colonne fixe à gauche, pré-remplie et non éditable en mode réponse). */
   rowLabels: string[]
   rows: string[][]
+  /** Largeur de chaque colonne (en %), alignée sur `headers`. Absent = largeurs égales. */
+  columnWidths?: number[]
+}
+
+export interface DrawingPoint {
+  x: number
+  y: number
+}
+
+export interface DrawingStroke {
+  points: DrawingPoint[]
+}
+
+export interface DrawingData {
+  strokes: DrawingStroke[]
 }
 
 export interface Subject {
@@ -68,6 +85,8 @@ export interface Question {
   question_type: QuestionType
   accounting_data: AccountingData | null
   table_data: TableData | null
+  drawing_data: DrawingData | null
+  flagged: boolean
 }
 
 export interface QuestionReview {
