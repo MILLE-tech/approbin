@@ -194,6 +194,7 @@ export default function AccountingTable({ data, onChange, readOnly = false, lock
             <th className="px-2 py-1.5 text-left font-medium">Libellé</th>
             <th className="px-2 py-1.5 text-right font-medium">Montant débit</th>
             <th className="px-2 py-1.5 text-right font-medium">Montant crédit</th>
+            <th className="w-12 px-1 py-1.5 text-center font-medium">Solder</th>
             {editableStructure && <th className="w-8" />}
           </tr>
         </thead>
@@ -275,7 +276,24 @@ export default function AccountingTable({ data, onChange, readOnly = false, lock
                 </>
               )}
               <td className="border-r border-slate-100">{renderMontant(row, i, 'montantDebit')}</td>
-              <td>{renderMontant(row, i, 'montantCredit')}</td>
+              <td className="border-r border-slate-100">{renderMontant(row, i, 'montantCredit')}</td>
+              <td className="text-center">
+                {row.kind !== 'libelle' &&
+                  (editableCells ? (
+                    <button
+                      type="button"
+                      onClick={() => updateRow(i, { solder: !row.solder })}
+                      className={`w-7 h-6 rounded border text-[10px] font-semibold ${
+                        row.solder ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 text-slate-300 hover:border-brand-300'
+                      }`}
+                      aria-label="Pour solde"
+                    >
+                      {row.solder ? 'PS' : ''}
+                    </button>
+                  ) : (
+                    row.solder && <span className="block text-center text-[11px] font-semibold text-slate-600">PS</span>
+                  ))}
+              </td>
               {editableStructure && (
                 <td>
                   <button type="button" onClick={() => removeRow(i)} className="p-1.5 text-slate-300 hover:text-danger-600" aria-label="Supprimer la ligne">
